@@ -352,19 +352,16 @@ This allows the search area to expand gradually when tracking becomes uncertain 
 
 ### 6. `object_display.vhd`
 
-Generates a hardware debug image with a black background and overlays the current tracking state:
+Generates a hardware debug view that provides a direct visual representation of the current tracking state.
 
-- cleaned mask — white,
-- ROI border — green,
-- measured center — red `+`,
-- predicted center — blue `X`.
+The output uses a black background and displays:
 
-The current display parameters are:
+- **Cleaned mask** - white
+- **Active ROI border** - green
+- **Measured object center** - red `+`
+- **Predicted object center** - blue `X`
 
-```text
-ROI border thickness: 2 px
-Center-marker radius: 4 px
-```
+This makes it possible to visually verify the detected object region, the current search area, and the relationship between the measured and predicted object positions directly from the hardware output.
 
 ### 7. `vision_tracker_logic_top.vhd`
 
@@ -386,53 +383,32 @@ constant FRAME_HEIGHT : positive := 480;
 constant VEL_MAX      : positive := 120;
 ```
 
-Changing the frame dimensions in this package causes the required internal widths to be derived automatically at elaboration time, including:
+These parameters define the frame dimensions and the maximum supported tracking velocity.
+
+From them, the package automatically derives the internal bit widths required throughout the hardware design, including:
 
 - X/Y coordinate widths,
-- ROI width/height widths,
+- ROI dimension widths,
 - full-frame pixel-count width,
 - X/Y centroid accumulator widths,
 - signed predicted-center widths.
 
-For example, the predicted-center width is automatically large enough to represent positions temporarily outside the visible frame by up to `VEL_MAX`.
+The derived widths automatically scale with the configured frame dimensions. For example, the centroid accumulators are sized to hold the maximum possible sum of matching-pixel coordinates across a complete frame.
 
-This makes the hardware architecture reusable: the designer changes the central frame configuration and rebuilds the FPGA instead of manually updating width declarations throughout every VHDL module.
+The predicted-center representation also accounts for `VEL_MAX`, allowing predicted positions to temporarily extend beyond the visible frame boundaries without overflowing the internal representation.
 
-### Hardware tuning parameters
-
-Algorithmic tuning values are also centralized at the integration boundary through the generic map of `roi_tracker_update`.
-
-The current build uses:
+The package provides helper functions used to calculate these widths at elaboration time:
 
 ```text
-PAD_BASE       = 8
-PAD_MAX        = 40
-MAX_TRACK_ROI  = 200 × 200
-COUNT_FLOOR    = 150
-COUNT_SHIFT    = 3
-LOSS_BASE      = 10
-LOSS_RAMP      = 5
-LOSS_MIN       = 5
-LOSS_MAX       = 40
-MAX_LOSS_ROI   = 240 × 240
+clog2()
+    Determines the number of bits required to represent a given range.
+
+coordinate_sum_bits()
+    Determines the number of bits required for the centroid coordinate accumulators.
 ```
 
-These values control the physical behavior of the hardware tracker: how tightly it follows the target, how the acceptance threshold scales, how far it predicts, and how aggressively it expands the search region after a missed frame.
-
-They are **compile-time hardware parameters**. Changing them means rebuilding the PL implementation, while runtime object-specific values such as the initial ROI and Cr/Cb thresholds are written by the PS through AXI-Lite.
-
-The main edit points are:
-
-- `PL/src/vision_tracker_pkg.vhd` — frame dimensions, `VEL_MAX`, and automatically derived widths.
-- `PL/src/vision_tracker_logic_top.vhd` — the `roi_tracker_update` generic map used to tune padding, ROI limits, acceptance thresholds and loss behavior.
-
-This separation gives the design two useful configuration levels:
-
-| Configuration type | Examples | How it is changed |
-|---|---|---|
-| **Compile-time PL architecture / tuning** | frame size, `VEL_MAX`, padding, maximum ROI sizes, loss behavior | VHDL package / generics → rebuild bitstream |
-| **Runtime object configuration** | tracking enable, initial ROI, Cr/Cb thresholds | PS → AXI-Lite registers |
-
+This centralizes the resolution-dependent configuration and allows the hardware to be adapted to a different frame size without manually recalculating signal widths throughout the individual VHDL modules.
+````
 
 ---
 

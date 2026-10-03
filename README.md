@@ -159,7 +159,7 @@ Cb = ((-43R - 85G + 128B) >> 8) + 128
 Cr = ((128R -107G - 21B) >> 8) + 128
 ```
 
-Object classification is based exclusively on the **Cr and Cb chrominance components** of the YCrCb color space. The **Y (luminance) component is excluded from the tracking process**, reducing the system’s sensitivity to variations in illumination and brightness.
+Object classification is based exclusively on the **Cr and Cb chrominance components** of the YCrCb color space. The **Y (luminance) component is excluded from the tracking process**, making the system less sensitive to changes in lighting conditions.
 
 ### 2. `roi_mask_generator.vhd`
 
@@ -177,25 +177,31 @@ Pixels outside the ROI are forced to zero. Limiting classification to the curren
 
 ### 3. `mask_cleaner.vhd`
 
-Applies a generic odd-sized majority filter to the binary mask.
+### 3. `mask_cleaner.vhd`
 
-The current top-level configuration uses:
+Cleans the binary object mask using a generic odd-sized **K × K majority filter**.
+
+For any odd kernel size `K`:
 
 ```text
-Kernel:              5 × 5
-Window pixels:       25
-Majority threshold:  13
+Kernel:              K × K
+Window pixels:       K²
+Majority threshold:  (K² + 1) / 2
 ```
 
-The module uses line buffers and a sliding window. After the initial raster-alignment delay, it supports **one output pixel for every valid input pixel**.
+For each pixel, the module examines the corresponding `K × K` neighborhood. The output pixel is set to `1` when at least `(K² + 1) / 2` pixels in the window are `1`; otherwise, it is set to `0`.
 
-The output is re-aligned to a complete frame raster so downstream blocks do not need to compensate for the filter offset.
+This removes isolated mask noise while preserving regions where object-classified pixels form a local majority.
+
+The module uses **line buffers and a sliding window** for continuous raster processing. After the initial raster-alignment delay, it supports **one output pixel for every valid input pixel**.
+
+The filtered output is re-aligned to a complete frame raster so downstream blocks receive correctly positioned pixel coordinates and do not need to compensate for the filter offset.
 
 ### 4. `object_measurement.vhd`
 
 Calculates object statistics from the cleaned mask:
 
-- minimum and maximum X/Y coordinates,
+- leftmost, rightmost, topmost, and bottommost coordinates of the detected object,
 - bounding-box width and height,
 - matching-pixel count,
 - centroid X and Y.

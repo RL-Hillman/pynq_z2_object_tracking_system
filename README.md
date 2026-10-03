@@ -409,7 +409,7 @@ coordinate_sum_bits()
 
 This centralizes the resolution-dependent configuration and allows the hardware to be adapted to a different frame size without manually recalculating signal widths throughout the individual VHDL modules.
 
----
+
 # Operating Modes
 
 ## 1. General Object Tracking

@@ -261,7 +261,6 @@ The threshold is recalculated after every accepted measurement, allowing it to s
 `COUNT_SHIFT` defines the required ratio between the number of matching pixels and the object's bounding-box area.
 
 This allows the required pixel count to increase with object size while maintaining a minimum threshold for smaller objects.
-````
 
 For each completed frame:
 

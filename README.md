@@ -1,14 +1,24 @@
 # PYNQ-Z2 FPGA Based Real-Time Object Tracking System
 
-An **FPGA real-time object tracking system** implemented on the **PYNQ-Z2**, with the complete continuous tracking loop executed in Programmable Logic (PL).
+An **FPGA-based real-time object tracking system** implemented on the **PYNQ-Z2**.
 
-The ARM Processing System (PS) is used to capture/forward camera frames, perform one-time initialization, provide user interaction, and configure the FPGA. **Once a frame enters the custom `vision_tracker_ip`, the PS does not calculate the object's position, center, motion, prediction, ROI, loss state, or recovery search. Those operations are performed entirely in hardware.**
+The core of the system is a **custom VHDL tracking engine** running entirely in the FPGA's **Programmable Logic (PL)**. Once initialized, the FPGA performs the complete frame-by-frame tracking process in hardware, including object segmentation, mask filtering, object measurement, centroid calculation, motion estimation, prediction of the object's next position, adaptive ROI control, loss detection and recovery, and debug-video generation.
 
-The custom VHDL tracker performs the full frame-by-frame feedback loop in hardware: segmentation, filtering, object measurement, centroid calculation, motion estimation, prediction, adaptive ROI control, loss recovery and debug-video generation.
+The **Processing System (PS)** is responsible for camera interfacing, frame delivery, initialization, configuration, user interaction, optional high-level supervision, and displaying the tracking information received from the PL.
 
-> **Core architectural principle:** the software delivers frames and seeds/configures the tracker; the FPGA owns the tracking state and updates it autonomously for every frame.
+## Operating Modes
 
-A second operating mode demonstrates how this same hardware tracker can be combined with a higher-level palm detector on the PS. In that mode, the neural network is used only for acquisition and periodic validation. The continuous frame-by-frame tracking loop still remains in the PL.
+The project includes **two software operating modes**, both using the same hardware tracker:
+
+### General Object Tracking
+
+The user selects an object once, and the PS learns the initial color thresholds and provides the initial ROI. From that point, the **FPGA performs the complete continuous tracking process autonomously**.
+
+### Validated Hand Tracking
+
+This mode demonstrates how an **AI model can be combined with the hardware tracker**. A palm-detection model running on the PS is used to acquire a hand and periodically validate that the FPGA is still tracking the correct target.
+
+Between validation events, the **FPGA continues to perform the complete real-time tracking independently**.
 
 ---
 

@@ -114,22 +114,6 @@ When the PS reads the complete tracking result, `fpga.py` uses this counter to e
 
 The FPGA implements a complete frame-to-frame tracking feedback loop. For each frame, the PL measures the object, estimates its motion, predicts its next position, and uses the predicted position and motion information to determine the ROI for the following frame.
 
-```text
-Frame N
-   ↓
-Object measurement
-   ↓
-Center and size
-   ↓
-Velocity estimation
-   ↓
-Next-position prediction
-   ↓
-Speed-dependent ROI sizing and positioning
-   ↓
-ROI for Frame N+1
-```
-
 ### FPGA Processing Pipeline
 
 The tracking engine is implemented as a sequence of dedicated VHDL blocks:

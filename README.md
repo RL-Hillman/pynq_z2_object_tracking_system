@@ -438,7 +438,6 @@ This is the cleanest demonstration of the hardware tracker.
 6. Tracking is enabled.
 7. From this point, the PS continues to deliver video frames, but **the continuous tracking state is owned by the PL**.
 
-> **General-object mode is the clearest demonstration of the hardware architecture:** after initialization, software does not continuously calculate where the object is or where the next ROI should be.
 
 The initialization behavior is controlled by the following parameters:
 

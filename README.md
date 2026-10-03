@@ -501,8 +501,6 @@ run_tracker.py
 
 This mode demonstrates how the same hardware tracker can be combined with a higher-level software detector for acquisition and periodic validation.
 
-The included `palm.onnx` model is used for **acquisition and validation**, while continuous frame-by-frame tracking remains in the PL.
-
 ### Flow
 
 1. The PS searches the full frame for a hand using `palm.onnx`.
@@ -511,7 +509,7 @@ The included `palm.onnx` model is used for **acquisition and validation**, while
 4. Tracking is enabled.
 5. From this point, **continuous tracking is performed by the PL**.
 6. The PS periodically validates that the tracked hand is still located inside the ROI reported by the PL.
-7. A fresh PL snapshot reporting `tracking_lost = 1` can trigger an immediate validation.
+7. A fresh PL snapshot reporting `tracking_lost = 1` trigger an immediate validation.
 8. If validation confirms that the hand is still correctly tracked, the PL continues without its ROI being overwritten.
 9. If validation fails repeatedly, the PS returns to full-frame hand acquisition and reinitializes the hardware tracker.
 

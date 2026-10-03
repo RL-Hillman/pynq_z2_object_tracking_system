@@ -274,7 +274,6 @@ else
 ```
 
 #### <u><strong>ACCEPT</strong></u>
-
 When the measurement contains enough matching pixels, it is accepted as the new object position.
 
 The tracker then:

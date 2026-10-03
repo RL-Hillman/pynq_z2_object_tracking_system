@@ -487,12 +487,6 @@ During operation, the notebook can display the current hardware state read from 
 
 ## 2. Validated Hand Tracking
 
-<p align="center">
-  <img src="docs/hand.gif" width="58%">
-</p>
-
-<p align="center"><i>The same FPGA tracking engine combined with PS-side palm acquisition and periodic high-level validation.</i></p>
-
 Directory:
 
 ```text
@@ -505,47 +499,45 @@ Main runtime:
 run_tracker.py
 ```
 
-This mode demonstrates how the same hardware tracker can be combined with a higher-level software detector.
+This mode demonstrates how the same hardware tracker can be combined with a higher-level software detector for acquisition and periodic validation.
 
-The included `palm.onnx` model is used for **acquisition and validation**, not for continuous frame-by-frame tracking.
+The included `palm.onnx` model is used for **acquisition and validation**, while continuous frame-by-frame tracking remains in the PL.
 
 ### Flow
 
-```mermaid
-flowchart LR
-    A[Full-frame Palm Search on PS] --> B[Hand ROI + Cr/Cb Learning]
-    B --> C[Seed PL Tracker]
-    C --> D[Continuous FPGA Tracking]
-    D --> E[Periodic / Urgent PS Validation]
-    E -->|Hand valid inside PL ROI| D
-    E -->|Validation failures| A
-```
+1. The PS searches the full frame for a hand using `palm.onnx`.
+2. Once a hand is detected, the PS defines an initial ROI and learns the corresponding Cr/Cb thresholds.
+3. The PS writes the initial ROI and thresholds to the FPGA.
+4. Tracking is enabled.
+5. From this point, **continuous tracking is performed by the PL**.
+6. The PS periodically validates that the tracked hand is still located inside the ROI reported by the PL.
+7. A fresh PL snapshot reporting `tracking_lost = 1` can trigger an immediate validation.
+8. If validation confirms that the hand is still correctly tracked, the PL continues without its ROI being overwritten.
+9. If validation fails repeatedly, the PS returns to full-frame hand acquisition and reinitializes the hardware tracker.
 
-The PS:
+The validation behavior is designed so that the software detector supervises the tracker without replacing the continuous hardware tracking loop.
 
-1. finds a hand using `palm.onnx`,
-2. derives an ROI and Cr/Cb thresholds,
-3. seeds the PL tracker,
-4. performs asynchronous validation approximately once per second,
-5. requests urgent validation when a fresh PL snapshot reports `tracking_lost = 1`.
+A successful validation does **not** continuously update the PL ROI. As long as tracking remains valid, the ROI continues to be calculated and updated by the hardware.
 
-Healthy tracking is intentionally left alone: a successful validation does **not** continuously overwrite the PL ROI.
-
-Palm inference runs in a background worker so it does not block the camera-to-video-to-PL path.
-
-Current validation interval:
-
-```text
-1.0 second
-```
+Palm inference runs in a background worker so that validation does not block the camera-to-video-to-PL processing path.
 
 ### PS/PL validation status
 
-The validated-hand runtime exposes the interaction between the software validator and the continuously running PL tracker. The status output below shows PS search/lock/validation events together with the current FPGA snapshot and tracking state.
+During operation, the notebook displays the interaction between the software validator and the continuously running PL tracker.
+
+The status output includes PS acquisition and validation events together with the current FPGA snapshot, ROI, measured object state and tracking-loss status.
 
 <p align="center">
   <img src="docs/validated_hand_tracking_status.jpg" width="90%">
 </p>
+
+### HDMI Tracking Display
+
+<p align="center">
+  <img src="docs/hand.gif" width="58%">
+</p>
+
+<p align="center"><i>The FPGA tracker following the detected hand while the PS performs acquisition and periodic high-level validation.</i></p>
 
 ---
 

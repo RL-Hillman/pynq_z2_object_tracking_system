@@ -235,7 +235,6 @@ The status output includes PS acquisition and validation events together with th
 
 <p align="center"><i>The FPGA tracker following the detected hand while the PS performs acquisition and periodic high-level validation.</i></p>
 
----
 
 ## FPGA / PL Design
 
@@ -520,7 +519,7 @@ coordinate_sum_bits()
 
 This centralizes the resolution-dependent configuration and allows the hardware to be adapted to a different frame size without manually recalculating signal widths throughout the individual VHDL modules.
 
----
+
 # FPGA Implementation Results
 
 The final Vivado implementation confirms that the complete system - including the PYNQ video infrastructure and the custom hardware tracker - fits comfortably in the Zynq-7000 device and meets the specified timing constraints.
@@ -613,7 +612,7 @@ pynq_z2_object_tracking_system/
 └── README.md
 ```
 
----
+
 # Hardware Setup
 
 ## Required Hardware
@@ -754,7 +753,7 @@ Open a Jupyter notebook and run:
 ```python
 %run run_tracker.py
 ```
----
+
 
 ## Summary
 

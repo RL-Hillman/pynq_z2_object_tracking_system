@@ -239,19 +239,50 @@ While centroid division is being performed for the completed frame, the accumula
 
 This block contains the main hardware tracking state machine.
 
-At the end of each measured frame, the tracker chooses between two paths:
+At the end of each measured frame, the tracker first determines whether the new object measurement is reliable enough to use.
+
+### Measurement acceptance decision
+
+The decision is based on the number of matching object pixels reported by `object_measurement.vhd`.
+
+The tracker maintains a dynamic minimum pixel requirement:
+
+```text
+min_accepted_pixels = max(
+    COUNT_FLOOR,
+    previous_object_width × previous_object_height / 2^COUNT_SHIFT
+)
+```
+
+This threshold is updated after every accepted measurement.
+
+`COUNT_FLOOR` provides a minimum noise-rejection level, while `COUNT_SHIFT` controls how strongly the required pixel count scales with the size of the tracked object.
+
+For each completed frame:
+
+```text
+if matching_pixel_count >= min_accepted_pixels
+    → ACCEPT
+
+else
+    → LOSS
+```
+
+This allows the tracker to adapt its acceptance requirement to the current object size instead of relying on a fixed pixel-count threshold.
 
 #### ACCEPT
 
-If enough matching pixels are detected, the measurement is accepted. The tracker then:
+When the measurement contains enough matching pixels, it is accepted as the new object position.
+
+The tracker then:
 
 1. stores the new measured center and size,
-2. calculates raw X/Y velocity,
+2. calculates raw X/Y velocity from the previous accepted center,
 3. limits the velocity using `VEL_MAX`,
 4. smooths the velocity using the previous accepted velocity,
 5. predicts the next object center,
 6. increases ROI padding according to movement speed,
-7. builds a tight ROI around the predicted position,
+7. builds a new ROI around the predicted position,
 8. atomically publishes the completed tracking state.
 
 Velocity smoothing:
@@ -268,16 +299,19 @@ predicted_center =
     measured_center + smoothed_velocity
 ```
 
-The normal-tracking ROI is controlled by configurable parameters including:
+Normal tracking behavior is controlled by parameters including:
 
 ```text
-VEL_MAX        Maximum allowed velocity
-PAD_BASE       Base ROI padding
-PAD_MAX        Maximum ROI padding
-TRACK_ROI_MAX  Maximum normal-tracking ROI size
+VEL_MAX          Maximum allowed velocity
+
+PAD_BASE         Base ROI padding
+PAD_MAX          Maximum ROI padding
+
+MAX_TRACK_ROI_W  Maximum normal-tracking ROI width
+MAX_TRACK_ROI_H  Maximum normal-tracking ROI height
 ```
 
-Padding grows with the magnitude of the tracked object's motion:
+The ROI padding increases with the magnitude of the object's motion:
 
 ```text
 padding = clamp(
@@ -287,35 +321,39 @@ padding = clamp(
 )
 ```
 
-This allows the ROI to remain tight during slow motion while automatically providing additional search space when the object moves faster.
+This keeps the ROI relatively tight when the object is moving slowly while providing additional search space when faster motion is detected.
 
 #### LOSS
 
-If too few matching pixels are detected, `tracking_lost` is asserted.
+When the number of matching pixels falls below `min_accepted_pixels`, the measurement is not trusted and `tracking_lost` is asserted.
 
-Instead of making another full prediction without a new measurement, the PL expands the ROI that is already centered around the previous predicted position.
+Because there is no reliable new object position, the tracker does not perform another full prediction from an untrusted measurement.
 
-The loss search is **direction-aware**, adding more search area in the last known direction of motion.
+Instead, it expands the ROI around the previous predicted position.
 
-The ROI also expands progressively across consecutive missed frames using a configurable loss ramp.
+The loss search is **direction-aware**: the last accepted velocity is used to provide more search space in the direction in which the object was previously moving.
 
-Loss recovery is controlled by parameters including:
+The search region also grows progressively when several consecutive frames are missed.
+
+Loss recovery behavior is controlled by parameters including:
 
 ```text
-LOSS_BASE      Initial loss-search expansion
-LOSS_RAMP      Additional expansion per consecutive loss
-LOSS_MIN       Minimum loss expansion
-LOSS_MAX       Maximum loss expansion
-LOSS_ROI_MAX   Maximum loss-search ROI size
+LOSS_BASE   Base expansion applied during loss
+LOSS_RAMP   Additional expansion after consecutive missed frames
+LOSS_MIN    Minimum expansion
+LOSS_MAX    Maximum expansion
+
+MAX_LOSS_W  Maximum loss-search ROI width
+MAX_LOSS_H  Maximum loss-search ROI height
 ```
 
-The search area therefore grows only as needed while remaining bounded.
+This allows the search area to expand gradually when tracking becomes uncertain while keeping the ROI bounded.
 
 ### Timing-oriented tracker pipelining
 
-The tracker state update is deliberately split across multiple clock cycles rather than placing the complete decision path into one long combinational calculation.
+The tracker update is split across multiple registered stages rather than performing the complete tracking calculation in a single clock cycle.
 
-For an accepted measurement, `roi_tracker_update` progresses through four registered stages:
+For an accepted measurement:
 
 ```text
 ACCEPT_VELOCITY
@@ -327,12 +365,12 @@ ACCEPT_ROI
 ACCEPT_COMMIT
 ```
 
-The stages separate the major calculations:
+The stages separate the main calculations:
 
-1. **Velocity stage** — raw X/Y velocity is calculated, limited by `VEL_MAX`, and smoothed.
-2. **Prediction stage** — the next object center and speed-dependent padding are calculated.
-3. **ROI stage** — the next ROI width and height are formed and constrained.
-4. **Commit stage** — the new ROI position and completed tracking state are published atomically.
+1. **Velocity stage** — calculates raw X/Y velocity, limits it using `VEL_MAX`, and applies velocity smoothing.
+2. **Prediction stage** — calculates the predicted object center and speed-dependent padding.
+3. **ROI stage** — calculates and constrains the next ROI dimensions.
+4. **Commit stage** — publishes the new ROI and completed tracking state together.
 
 Loss handling is also pipelined:
 
@@ -344,25 +382,9 @@ LOSS_EXPAND
 LOSS_COMMIT
 ```
 
-This separates the requested loss expansion from the final bounded ROI update and avoids creating a single long combinational loss-recovery path.
+The requested directional expansion is calculated first, then constrained to the allowed loss-search ROI size before the updated ROI is committed.
 
-The same timing-oriented design philosophy is used in `object_measurement.vhd`: frame accumulation is independent from centroid division, and the X/Y centroids are calculated by two small sequential dividers in parallel. While the completed frame is being divided, accumulation for the following frame can already continue.
-
-### Dynamic acceptance threshold
-
-After an accepted object measurement, the required matching-pixel count for the next frame is derived from the measured object size.
-
-Conceptually:
-
-```text
-min_accepted_pixels = max(
-    minimum_noise_floor,
-    object_width × object_height / scaling_factor
-)
-```
-
-This provides a minimum noise floor while allowing the acceptance threshold to scale automatically with the size of the tracked object.
-````
+Splitting these operations across registered stages reduces the combinational path length and improves timing closure.
 
 ### 6. `object_display.vhd`
 

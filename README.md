@@ -235,13 +235,14 @@ The implementation separates the work into two clocked processes:
 
 While centroid division is being performed for the completed frame, the accumulator can already begin processing pixels from the next frame.
 
+````markdown
 ### 5. `roi_tracker_update.vhd`
 
 This block contains the main hardware tracking state machine.
 
 At the end of each measured frame, the tracker first determines whether the new object measurement is reliable enough to use.
 
-### Measurement acceptance decision
+#### Measurement acceptance decision
 
 The decision is based on the number of matching object pixels reported by `object_measurement.vhd`.
 
@@ -256,9 +257,10 @@ min_accepted_pixels = max(
 
 The threshold is recalculated after every accepted measurement, allowing it to scale with the tracked object's size.
 
-`COUNT_FLOOR` defines the minimum number of matching pixels required for acceptance.
-
-`COUNT_SHIFT` defines the required ratio between the number of matching pixels and the object's bounding-box area.
+| Parameter | Description |
+|---|---|
+| `COUNT_FLOOR` | Minimum number of matching pixels required for acceptance |
+| `COUNT_SHIFT` | Required ratio between the number of matching pixels and the object's bounding-box area |
 
 This allows the required pixel count to increase with object size while maintaining a minimum threshold for smaller objects.
 
@@ -287,31 +289,29 @@ The tracker then:
 7. builds a new ROI around the predicted position,
 8. publishes the completed tracking state.
 
-Velocity smoothing:
+**Velocity smoothing**
 
 ```text
 smoothed_velocity =
     (raw_velocity + previous_smoothed_velocity) / 2
 ```
 
-Prediction:
+**Prediction**
 
 ```text
 predicted_center =
     measured_center + smoothed_velocity
 ```
 
-Normal tracking behavior is controlled by parameters including:
+Normal tracking behavior is controlled by the following parameters:
 
-```text
-VEL_MAX          Maximum allowed velocity
-
-PAD_BASE         Base ROI padding
-PAD_MAX          Maximum ROI padding
-
-MAX_TRACK_ROI_W  Maximum normal-tracking ROI width
-MAX_TRACK_ROI_H  Maximum normal-tracking ROI height
-```
+| Parameter | Description |
+|---|---|
+| `VEL_MAX` | Maximum allowed velocity |
+| `PAD_BASE` | Base ROI padding |
+| `PAD_MAX` | Maximum ROI padding |
+| `MAX_TRACK_ROI_W` | Maximum normal-tracking ROI width |
+| `MAX_TRACK_ROI_H` | Maximum normal-tracking ROI height |
 
 The ROI padding increases with the magnitude of the object's motion:
 
@@ -337,21 +337,21 @@ The loss search is **direction-aware**: the last accepted velocity is used to pr
 
 The search region grows progressively when several consecutive frames are missed.
 
-Loss recovery behavior is controlled by parameters including:
+Loss recovery behavior is controlled by the following parameters:
 
-```text
-LOSS_BASE   Base expansion applied during loss
-LOSS_RAMP   Additional expansion after consecutive missed frames
-LOSS_MIN    Minimum expansion
-LOSS_MAX    Maximum expansion
-
-MAX_LOSS_W  Maximum loss-search ROI width
-MAX_LOSS_H  Maximum loss-search ROI height
-```
+| Parameter | Description |
+|---|---|
+| `LOSS_BASE` | Base expansion applied during loss |
+| `LOSS_RAMP` | Additional expansion after consecutive missed frames |
+| `LOSS_MIN` | Minimum expansion |
+| `LOSS_MAX` | Maximum expansion |
+| `MAX_LOSS_W` | Maximum loss-search ROI width |
+| `MAX_LOSS_H` | Maximum loss-search ROI height |
 
 This allows the search area to expand gradually when tracking becomes uncertain while keeping the ROI bounded.
 
-**The tracking logic is implemented as a multi-stage registered state machine to maintain a short combinational path between registers.**
+> **Implementation note:** The tracking logic is implemented as a multi-stage registered state machine to maintain a short combinational path between registers.
+````
 
 ### 6. `object_display.vhd`
 

@@ -639,57 +639,20 @@ http://192.168.2.99:9090
 ```
 
 ---
-
 # Running the Project on the Board
 
-## Prepare the Overlay Files
+## General Object Tracking
 
-Both runtime scripts expect the matching `.bit` and `.hwh` files to be **in the same directory as the Python runtime**.
-
-The repository stores the master copies under:
+Required files:
 
 ```text
-PL/design_1.bit
-PL/design_1.hwh
-```
-
-Before running a mode, place both files next to that mode's script.
-
-### General Object Tracking directory should contain
-
-```text
-PS/GENERAL_OBJECT_TRACKING/
 ├── fpga.py
 ├── run_object_tracker_pynq.py
 ├── design_1.bit
 └── design_1.hwh
 ```
 
-### Validated Hand Tracking directory should contain
-
-```text
-PS/VALIDATED_HAND_TRACKING/
-├── fpga.py
-├── mp_palmdet.py
-├── palm.onnx
-├── run_tracker.py
-├── design_1.bit
-└── design_1.hwh
-```
-
-The `.bit` and `.hwh` files must be the matching pair generated from the same Vivado design.
-
----
-
-## Run General Object Tracking
-
-Open a Jupyter notebook in:
-
-```text
-PS/GENERAL_OBJECT_TRACKING/
-```
-
-Run:
+Open a Jupyter notebook and run:
 
 ```python
 %matplotlib notebook
@@ -699,35 +662,23 @@ tracker = PYNQObjectTracker()
 tracker.run_interactive()
 ```
 
-### User flow
+## Validated Hand Tracking
 
-1. Wait for the live camera preview.
-2. Click **CAPTURE FRAME**.
-3. Draw a rectangle around the object to track.
-4. Confirm the ROI and start tracking.
-5. Observe the live PL status and hardware debug output.
-6. Use **STOP & CLOSE** for a clean shutdown.
-
-Once tracking has started, the continuous tracker is running in the PL.
-
----
-
-## Run Validated Hand Tracking
-
-Open a Jupyter notebook in:
+Required files:
 
 ```text
-PS/VALIDATED_HAND_TRACKING/
+├── fpga.py
+├── mp_palmdet.py
+├── palm.onnx
+├── run_tracker.py
+├── design_1.bit
+└── design_1.hwh
 ```
 
-Run:
-
+Open a Jupyter notebook and run:
 ```python
 %run run_tracker.py
 ```
-
-The runtime automatically starts full-frame hand search. After a valid hand is acquired, it learns the hand's chrominance limits, seeds the FPGA tracker and enters continuous PL tracking with periodic PS validation.
-
 ---
 
 # Hardware-Matched PC Simulation

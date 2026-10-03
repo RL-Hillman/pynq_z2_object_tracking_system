@@ -26,38 +26,7 @@ A second operating mode demonstrates how this same hardware tracker can be combi
 
 ---
 
-## Live Demonstrations
-
-The following demonstrations show the system running on the PYNQ-Z2 in both general-object and validated-hand tracking modes.
-
-<table>
-  <tr>
-    <td width="33%" align="center"><img src="docs/general_object1.gif" width="100%"></td>
-    <td width="33%" align="center"><img src="docs/general_object_2.gif" width="100%"></td>
-    <td width="33%" align="center"><img src="docs/hand.gif" width="100%"></td>
-  </tr>
-  <tr>
-    <td align="center"><b>General Object Tracking - 1</b></td>
-    <td align="center"><b>General Object Tracking - 2</b></td>
-    <td align="center"><b>Validated Hand Tracking</b></td>
-  </tr>
-</table>
-
-### Debug display legend
-
-The FPGA generates a dedicated debug video output:
-
-- **White** — cleaned binary object mask
-- **Green rectangle** — current tracking ROI
-- **Red `+`** — measured object center
-- **Blue `X`** — predicted object center
-
-> **TODO — Add a clear HDMI/debug-output screenshot here**  
-> Suggested file: `docs/hdmi_tracking_output.png`
-
----
-
-## Key Features
+## Key Features## Key Features
 
 ### Hardware tracking core
 
@@ -706,6 +675,13 @@ The block design contains multiple PS-generated clocks, including 100 MHz and 14
 
 ## 1. General Object Tracking
 
+<p align="center">
+  <img src="docs/general_object1.gif" width="48%">
+  <img src="docs/general_object_2.gif" width="48%">
+</p>
+
+<p align="center"><i>Two examples of the general-purpose FPGA tracker following different user-selected objects.</i></p>
+
 Directory:
 
 ```text
@@ -772,6 +748,12 @@ During operation, the notebook can display the current hardware state read from 
 ---
 
 ## 2. Validated Hand Tracking
+
+<p align="center">
+  <img src="docs/hand.gif" width="58%">
+</p>
+
+<p align="center"><i>The same FPGA tracking engine combined with PS-side palm acquisition and periodic high-level validation.</i></p>
 
 Directory:
 
@@ -1390,7 +1372,7 @@ Possible extensions include:
 
 # Documentation Media
 
-The following media files are already included under `docs/` and are used directly by this README:
+The following media files are already included under `docs/` and are used directly by this README in the relevant technical and operating-mode sections:
 
 ```text
 docs/

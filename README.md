@@ -8,14 +8,22 @@ The project combines a streaming VHDL image-processing pipeline, adaptive ROI tr
 
 ---
 
-## Demo
+## Live Demonstrations
 
-> **TODO — Add main demo video/GIF here**  
-> Suggested file: `docs/media/general_object_tracking.gif`  
-> Recommended content: select an object, start tracking, move it normally and then quickly, and show the FPGA ROI following it.
->
-> Replace this block later with:
-> `![General object tracking demo](docs/media/general_object_tracking.gif)`
+The following demonstrations show the system running on the PYNQ-Z2 in both general-object and validated-hand tracking modes.
+
+<table>
+  <tr>
+    <td width="33%" align="center"><img src="docs/general_object1.gif" width="100%"></td>
+    <td width="33%" align="center"><img src="docs/general_object_2.gif" width="100%"></td>
+    <td width="33%" align="center"><img src="docs/hand.gif" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>General Object Tracking — Demo 1</b></td>
+    <td align="center"><b>General Object Tracking — Demo 2</b></td>
+    <td align="center"><b>Validated Hand Tracking</b></td>
+  </tr>
+</table>
 
 ### Debug display legend
 
@@ -27,7 +35,7 @@ The FPGA generates a dedicated debug video output:
 - **Blue `X`** — predicted object center
 
 > **TODO — Add a clear HDMI/debug-output screenshot here**  
-> Suggested file: `docs/media/hdmi_tracking_output.png`
+> Suggested file: `docs/hdmi_tracking_output.png`
 
 ---
 
@@ -77,7 +85,7 @@ flowchart LR
 The PS is therefore **not removed from the video path**: it captures the USB-camera frames and submits them to the PYNQ video pipeline. However, once tracking starts, the **tracking decisions themselves — segmentation, measurement, motion estimation, prediction, ROI movement and loss expansion — are performed by the PL**.
 
 > **TODO — Add polished system-architecture diagram here**  
-> Suggested file: `docs/media/system_architecture.png`  
+> Suggested file: `docs/system_architecture.png`  
 > The Mermaid diagram above can remain as the editable technical version, or be replaced by the final graphic.
 
 ---
@@ -129,7 +137,7 @@ flowchart TD
 ```
 
 > **TODO — Add polished FPGA pipeline figure here**  
-> Suggested file: `docs/media/fpga_pipeline.png`
+> Suggested file: `docs/fpga_pipeline.png`
 
 ### 1. `rgb_to_ycrcb.vhd`
 
@@ -426,7 +434,7 @@ PL/design_1.hwh
 ```
 
 > **TODO — Add Vivado Block Design screenshot here**  
-> Suggested file: `docs/media/vivado_block_design.png`  
+> Suggested file: `docs/vivado_block_design.png`  
 > Make sure the screenshot clearly shows the Zynq PS, video/VDMA path, custom tracking IP, AXI-Lite connection and HDMI output path.
 
 ---
@@ -471,8 +479,28 @@ Minimum color samples:     10
 
 The purpose of the percentile limits is to reject color outliers before expanding the final Cr/Cb range by the configured margin.
 
-> **TODO — Add general-object demo GIF/video here**  
-> Suggested file: `docs/media/general_object_tracking.gif`
+### Initial ROI selection examples
+
+The general-object mode begins with a one-time user selection of the target ROI. The PS then learns the initial Cr/Cb range from the selected object and seeds the hardware tracker.
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/general_object_initial_roi_green_object.jpg" width="100%"></td>
+    <td width="50%" align="center"><img src="docs/general_object_initial_roi_mug.jpg" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Initial ROI — Example 1</b></td>
+    <td align="center"><b>Initial ROI — Example 2</b></td>
+  </tr>
+</table>
+
+### Live PL tracking data
+
+During operation, the notebook can display the current hardware state read from the tracker through AXI-Lite, including the published snapshot number, measured object center and size, pixel count, current ROI, predicted center and loss state.
+
+<p align="center">
+  <img src="docs/general_object_pl_tracking_data.jpg" width="90%">
+</p>
 
 ---
 
@@ -524,8 +552,13 @@ Current validation interval:
 1.0 second
 ```
 
-> **TODO — Add validated-hand demo video/GIF here**  
-> Suggested file: `docs/media/validated_hand_tracking.gif`
+### PS/PL validation status
+
+The validated-hand runtime exposes the interaction between the software validator and the continuously running PL tracker. The status output below shows PS search/lock/validation events together with the current FPGA snapshot and tracking state.
+
+<p align="center">
+  <img src="docs/validated_hand_tracking_status.jpg" width="90%">
+</p>
 
 ---
 
@@ -814,7 +847,7 @@ The simulator opens two useful windows:
 - **REAL SYSTEM - exact PL HDMI** — software rendering of the expected hardware debug output.
 
 > **TODO — Add simulation screenshot here**  
-> Suggested file: `docs/media/hardware_matched_simulation.png`
+> Suggested file: `docs/hardware_matched_simulation.png`
 
 This simulation was used as a development tool for changing tracking parameters quickly before transferring the selected values back into the VHDL implementation.
 
@@ -863,10 +896,10 @@ This section should contain the final post-implementation Vivado results rather 
 | Timing met | **TODO** |
 
 > **TODO — Add Vivado utilization screenshot here**  
-> Suggested file: `docs/media/vivado_utilization.png`
+> Suggested file: `docs/vivado_utilization.png`
 
 > **TODO — Add Vivado timing summary screenshot here**  
-> Suggested file: `docs/media/vivado_timing_summary.png`
+> Suggested file: `docs/vivado_timing_summary.png`
 
 Do not replace the table with screenshots alone. The screenshots provide evidence, while the table makes the important engineering results immediately readable.
 
@@ -905,6 +938,15 @@ pynq_z2_object_tracking_system/
 │       ├── mp_palmdet.py
 │       ├── palm.onnx
 │       └── run_tracker.py
+│
+├── docs/
+│   ├── general_object1.gif
+│   ├── general_object_2.gif
+│   ├── hand.gif
+│   ├── general_object_initial_roi_green_object.jpg
+│   ├── general_object_initial_roi_mug.jpg
+│   ├── general_object_pl_tracking_data.jpg
+│   └── validated_hand_tracking_status.jpg
 │
 ├── full_system_simulation.py
 └── README.md
@@ -1017,36 +1059,46 @@ Possible extensions include:
 
 ---
 
-# Media Still to Add
+# Documentation Media
 
-Before the final public release, add the following media:
-
-1. **Main tracking GIF/video** — the strongest visual demonstration of the project.
-2. **Physical hardware setup photo** — PYNQ-Z2, USB camera, Ethernet and optional HDMI display.
-3. **FPGA debug-output screenshot** — white mask, green ROI, red measured center, blue prediction.
-4. **Vivado Block Design screenshot** — clearly showing the custom tracking IP in the complete Zynq/video design.
-5. **Polished architecture diagram** — PS/PL and data/control paths.
-6. **Polished FPGA pipeline diagram** — the VHDL processing stages.
-7. **Validated-hand tracking demo**.
-8. **Hardware-matched PC simulation screenshot**.
-9. **Vivado utilization report**.
-10. **Vivado timing summary**.
-
-Recommended folder:
+The following media files are already included under `docs/` and are used directly by this README:
 
 ```text
 docs/
-└── media/
-    ├── general_object_tracking.gif
-    ├── hardware_setup.jpg
-    ├── hdmi_tracking_output.png
-    ├── vivado_block_design.png
-    ├── system_architecture.png
-    ├── fpga_pipeline.png
-    ├── validated_hand_tracking.gif
-    ├── hardware_matched_simulation.png
-    ├── vivado_utilization.png
-    └── vivado_timing_summary.png
+├── general_object1.gif
+├── general_object_2.gif
+├── hand.gif
+├── general_object_initial_roi_green_object.jpg
+├── general_object_initial_roi_mug.jpg
+├── general_object_pl_tracking_data.jpg
+└── validated_hand_tracking_status.jpg
+```
+
+## Media Still to Add
+
+Before the final public release, the following engineering visuals should still be added:
+
+1. **Physical hardware setup photo** — PYNQ-Z2, USB camera, Ethernet, HDMI cable and display.
+2. **FPGA debug-output screenshot** — white mask, green ROI, red measured center and blue predicted center.
+3. **Vivado Block Design screenshot** — clearly showing the Zynq PS, video path, custom tracking IP, AXI-Lite connection and HDMI output path.
+4. **Polished architecture diagram** — PS/PL partitioning and video/control data paths.
+5. **Polished FPGA pipeline diagram** — the VHDL processing stages.
+6. **Hardware-matched PC simulation screenshot**.
+7. **Vivado utilization report**.
+8. **Vivado timing summary**.
+
+Recommended filenames:
+
+```text
+docs/
+├── hardware_setup.jpg
+├── hdmi_tracking_output.png
+├── vivado_block_design.png
+├── system_architecture.png
+├── fpga_pipeline.png
+├── hardware_matched_simulation.png
+├── vivado_utilization.png
+└── vivado_timing_summary.png
 ```
 
 ---

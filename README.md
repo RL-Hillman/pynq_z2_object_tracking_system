@@ -1,24 +1,20 @@
 # PYNQ-Z2 FPGA Based Real-Time Object Tracking System
 
+# FPGA Real-Time Object Tracking System
+
 An **FPGA-based real-time object tracking system** implemented on the **PYNQ-Z2**.
 
 The core of the system is a **custom VHDL tracking engine** running entirely in the FPGA's **Programmable Logic (PL)**. Once initialized, the FPGA performs the complete frame-by-frame tracking process in hardware, including object segmentation, mask filtering, object measurement, centroid calculation, motion estimation, prediction of the object's next position, adaptive ROI control, loss detection and recovery, and debug-video generation.
 
 The **Processing System (PS)** is responsible for camera interfacing, frame delivery, initialization, configuration, user interaction, optional high-level supervision, and displaying the tracking information received from the PL.
 
-## Operating Modes
-
 The project includes **two software operating modes**, both using the same hardware tracker:
 
-### General Object Tracking
+- **General Object Tracking** — the user selects an object once, and the PS learns the initial color thresholds and provides the initial ROI. From that point, the **FPGA performs the complete continuous tracking process autonomously**.
 
-The user selects an object once, and the PS learns the initial color thresholds and provides the initial ROI. From that point, the **FPGA performs the complete continuous tracking process autonomously**.
+- **Validated Hand Tracking** — demonstrates how an **AI model can be combined with the hardware tracker**. A palm-detection model running on the PS is used to acquire a hand and periodically validate that the FPGA is still tracking the correct target. Between validation events, the **FPGA continues to perform the complete real-time tracking independently**.
 
-### Validated Hand Tracking
-
-This mode demonstrates how an **AI model can be combined with the hardware tracker**. A palm-detection model running on the PS is used to acquire a hand and periodically validate that the FPGA is still tracking the correct target.
-
-Between validation events, the **FPGA continues to perform the complete real-time tracking independently**.
+---
 
 ---
 

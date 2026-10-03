@@ -107,6 +107,135 @@ bits 31:24  = Cb max
 The PL increments `SNAPSHOT_COUNTER` whenever a new tracking result is published. This allows the PS to detect when fresh tracking data is available.
 
 When the PS reads the complete tracking result, `fpga.py` uses this counter to ensure that **all values being read belong to the same processed frame**. `fpga.py` checks the counter both before and after reading the tracking registers; if it changes during the read, a new result was published before the read was completed, so the registers are read again.
+---
+# Operating Modes
+
+## 1. General Object Tracking
+
+Directory:
+
+```text
+PS/GENERAL_OBJECT_TRACKING/
+```
+
+Main runtime:
+
+```text
+run_object_tracker_pynq.py
+```
+
+This is the cleanest demonstration of the hardware tracker.
+
+### Flow
+
+1. The PS displays the live USB-camera preview.
+2. The user captures one frame.
+3. The user draws an initial ROI around the target object.
+4. The PS learns Cr/Cb limits from the central region of that selected object.
+5. The PS writes the initial ROI and thresholds to the FPGA.
+6. Tracking is enabled.
+7. From this point, the PS continues to deliver video frames, but **the continuous tracking state is owned by the PL**.
+
+
+The initialization behavior is controlled by the following parameters:
+
+| Parameter | Purpose |
+|---|---|
+| `Central ROI fraction` | Defines how much of the center of the user-selected ROI is used for color sampling |
+| `Low percentile` | Defines the lower percentile used when estimating the Cr/Cb range |
+| `High percentile` | Defines the upper percentile used when estimating the Cr/Cb range |
+| `Cr/Cb margin` | Expands the learned Cr/Cb limits after percentile filtering |
+| `Minimum color samples` | Defines the minimum number of valid color samples required to estimate the initial Cr/Cb range |
+
+The percentile limits reduce the influence of color outliers, while the Cr/Cb margin provides additional tolerance around the learned object-color range.
+
+### Initial ROI selection examples
+
+The general-object mode begins with a one-time user selection of the target ROI. The PS then learns the initial Cr/Cb range from the selected object and seeds the hardware tracker.
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/general_object_initial_roi_green_object.jpg" width="100%"></td>
+    <td width="50%" align="center"><img src="docs/general_object_initial_roi_mug.jpg" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Initial ROI — Example 1</b></td>
+    <td align="center"><b>Initial ROI — Example 2</b></td>
+  </tr>
+</table>
+
+### Live PL tracking data
+
+During operation, the notebook can display the current hardware state read from the tracker through AXI-Lite, including the published snapshot number, measured object center and size, pixel count, current ROI, predicted center and loss state.
+
+<p align="center">
+  <img src="docs/general_object_pl_tracking_data.jpg" width="90%">
+</p>
+
+### HDMI Tracking Display
+
+<p align="center">
+  <img src="docs/general_object1.gif" width="48%">
+  <img src="docs/general_object_2.gif" width="48%">
+</p>
+
+<p align="center"><i>Two examples of the general-purpose FPGA tracker following different user-selected objects.</i></p>
+
+---
+
+## 2. Validated Hand Tracking
+
+Directory:
+
+```text
+PS/VALIDATED_HAND_TRACKING/
+```
+
+Main runtime:
+
+```text
+run_tracker.py
+```
+
+This mode demonstrates how the same hardware tracker can be combined with a higher-level software detector for acquisition and periodic validation.
+
+### Flow
+
+1. The PS searches the full frame for a hand using `palm.onnx`.
+2. Once a hand is detected, the PS defines an initial ROI and learns the corresponding Cr/Cb thresholds.
+3. The PS writes the initial ROI and thresholds to the FPGA.
+4. Tracking is enabled.
+5. From this point, **continuous tracking is performed by the PL**.
+6. The PS periodically validates that the tracked hand is still located inside the ROI reported by the PL.
+7. A fresh PL snapshot reporting `tracking_lost = 1` trigger an immediate validation.
+8. If validation confirms that the hand is still correctly tracked, the PL continues without its ROI being overwritten.
+9. If validation fails repeatedly, the PS returns to full-frame hand acquisition and reinitializes the hardware tracker.
+
+The validation behavior is designed so that the software detector supervises the tracker without replacing the continuous hardware tracking loop.
+
+A successful validation does **not** continuously update the PL ROI. As long as tracking remains valid, the ROI continues to be calculated and updated by the hardware.
+
+Palm inference runs in a background worker so that validation does not block the camera-to-video-to-PL processing path.
+
+### PS/PL validation status
+
+During operation, the notebook displays the interaction between the software validator and the continuously running PL tracker.
+
+The status output includes PS acquisition and validation events together with the current FPGA snapshot, ROI, measured object state and tracking-loss status.
+
+<p align="center">
+  <img src="docs/validated_hand_tracking_status.jpg" width="90%">
+</p>
+
+### HDMI Tracking Display
+
+<p align="center">
+  <img src="docs/hand.gif" width="58%">
+</p>
+
+<p align="center"><i>The FPGA tracker following the detected hand while the PS performs acquisition and periodic high-level validation.</i></p>
+
+---
 
 ## FPGA / PL Design
 
@@ -391,134 +520,6 @@ coordinate_sum_bits()
 
 This centralizes the resolution-dependent configuration and allows the hardware to be adapted to a different frame size without manually recalculating signal widths throughout the individual VHDL modules.
 
-
-# Operating Modes
-
-## 1. General Object Tracking
-
-Directory:
-
-```text
-PS/GENERAL_OBJECT_TRACKING/
-```
-
-Main runtime:
-
-```text
-run_object_tracker_pynq.py
-```
-
-This is the cleanest demonstration of the hardware tracker.
-
-### Flow
-
-1. The PS displays the live USB-camera preview.
-2. The user captures one frame.
-3. The user draws an initial ROI around the target object.
-4. The PS learns Cr/Cb limits from the central region of that selected object.
-5. The PS writes the initial ROI and thresholds to the FPGA.
-6. Tracking is enabled.
-7. From this point, the PS continues to deliver video frames, but **the continuous tracking state is owned by the PL**.
-
-
-The initialization behavior is controlled by the following parameters:
-
-| Parameter | Purpose |
-|---|---|
-| `Central ROI fraction` | Defines how much of the center of the user-selected ROI is used for color sampling |
-| `Low percentile` | Defines the lower percentile used when estimating the Cr/Cb range |
-| `High percentile` | Defines the upper percentile used when estimating the Cr/Cb range |
-| `Cr/Cb margin` | Expands the learned Cr/Cb limits after percentile filtering |
-| `Minimum color samples` | Defines the minimum number of valid color samples required to estimate the initial Cr/Cb range |
-
-The percentile limits reduce the influence of color outliers, while the Cr/Cb margin provides additional tolerance around the learned object-color range.
-
-### Initial ROI selection examples
-
-The general-object mode begins with a one-time user selection of the target ROI. The PS then learns the initial Cr/Cb range from the selected object and seeds the hardware tracker.
-
-<table>
-  <tr>
-    <td width="50%" align="center"><img src="docs/general_object_initial_roi_green_object.jpg" width="100%"></td>
-    <td width="50%" align="center"><img src="docs/general_object_initial_roi_mug.jpg" width="100%"></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Initial ROI — Example 1</b></td>
-    <td align="center"><b>Initial ROI — Example 2</b></td>
-  </tr>
-</table>
-
-### Live PL tracking data
-
-During operation, the notebook can display the current hardware state read from the tracker through AXI-Lite, including the published snapshot number, measured object center and size, pixel count, current ROI, predicted center and loss state.
-
-<p align="center">
-  <img src="docs/general_object_pl_tracking_data.jpg" width="90%">
-</p>
-
-### HDMI Tracking Display
-
-<p align="center">
-  <img src="docs/general_object1.gif" width="48%">
-  <img src="docs/general_object_2.gif" width="48%">
-</p>
-
-<p align="center"><i>Two examples of the general-purpose FPGA tracker following different user-selected objects.</i></p>
-
----
-
-## 2. Validated Hand Tracking
-
-Directory:
-
-```text
-PS/VALIDATED_HAND_TRACKING/
-```
-
-Main runtime:
-
-```text
-run_tracker.py
-```
-
-This mode demonstrates how the same hardware tracker can be combined with a higher-level software detector for acquisition and periodic validation.
-
-### Flow
-
-1. The PS searches the full frame for a hand using `palm.onnx`.
-2. Once a hand is detected, the PS defines an initial ROI and learns the corresponding Cr/Cb thresholds.
-3. The PS writes the initial ROI and thresholds to the FPGA.
-4. Tracking is enabled.
-5. From this point, **continuous tracking is performed by the PL**.
-6. The PS periodically validates that the tracked hand is still located inside the ROI reported by the PL.
-7. A fresh PL snapshot reporting `tracking_lost = 1` trigger an immediate validation.
-8. If validation confirms that the hand is still correctly tracked, the PL continues without its ROI being overwritten.
-9. If validation fails repeatedly, the PS returns to full-frame hand acquisition and reinitializes the hardware tracker.
-
-The validation behavior is designed so that the software detector supervises the tracker without replacing the continuous hardware tracking loop.
-
-A successful validation does **not** continuously update the PL ROI. As long as tracking remains valid, the ROI continues to be calculated and updated by the hardware.
-
-Palm inference runs in a background worker so that validation does not block the camera-to-video-to-PL processing path.
-
-### PS/PL validation status
-
-During operation, the notebook displays the interaction between the software validator and the continuously running PL tracker.
-
-The status output includes PS acquisition and validation events together with the current FPGA snapshot, ROI, measured object state and tracking-loss status.
-
-<p align="center">
-  <img src="docs/validated_hand_tracking_status.jpg" width="90%">
-</p>
-
-### HDMI Tracking Display
-
-<p align="center">
-  <img src="docs/hand.gif" width="58%">
-</p>
-
-<p align="center"><i>The FPGA tracker following the detected hand while the PS performs acquisition and periodic high-level validation.</i></p>
-
 ---
 # FPGA Implementation Results
 
@@ -563,7 +564,56 @@ Despite including the complete video and control infrastructure, the implemented
 This leaves substantial programmable-logic capacity for future extensions and features.
 
 ---
+# Repository Structure
 
+```text
+pynq_z2_object_tracking_system/
+│
+├── PL/
+│   ├── design_1.bit
+│   ├── design_1.hwh
+│   │
+│   ├── hdl/
+│   │   ├── vision_tracker_ip.vhd
+│   │   └── vision_tracker_ip_slave_lite_v1_0_S_AXI_TRACK.vhd
+│   │
+│   └── src/
+│       ├── mask_cleaner.vhd
+│       ├── object_display.vhd
+│       ├── object_measurement.vhd
+│       ├── rgb_to_ycrcb.vhd
+│       ├── roi_mask_generator.vhd
+│       ├── roi_tracker_update.vhd
+│       ├── vision_tracker_logic_top.vhd
+│       └── vision_tracker_pkg.vhd
+│
+├── PS/
+│   ├── GENERAL_OBJECT_TRACKING/
+│   │   ├── fpga.py
+│   │   └── run_object_tracker_pynq.py
+│   │
+│   └── VALIDATED_HAND_TRACKING/
+│       ├── fpga.py
+│       ├── mp_palmdet.py
+│       ├── palm.onnx
+│       └── run_tracker.py
+│
+├── docs/
+│   ├── general_object1.gif
+│   ├── general_object_2.gif
+│   ├── hand.gif
+│   ├── general_object_initial_roi_green_object.jpg
+│   ├── general_object_initial_roi_mug.jpg
+│   ├── general_object_pl_tracking_data.jpg
+│   ├── validated_hand_tracking_status.jpg
+│   ├── hdmi_tracker_integration.png
+│   └── full_system_fpga_utilization.png
+│
+├── full_system_simulation.py
+└── README.md
+```
+
+---
 # Hardware Setup
 
 ## Required Hardware
@@ -704,56 +754,6 @@ Open a Jupyter notebook and run:
 ```python
 %run run_tracker.py
 ```
----
-# Repository Structure
-
-```text
-pynq_z2_object_tracking_system/
-│
-├── PL/
-│   ├── design_1.bit
-│   ├── design_1.hwh
-│   │
-│   ├── hdl/
-│   │   ├── vision_tracker_ip.vhd
-│   │   └── vision_tracker_ip_slave_lite_v1_0_S_AXI_TRACK.vhd
-│   │
-│   └── src/
-│       ├── mask_cleaner.vhd
-│       ├── object_display.vhd
-│       ├── object_measurement.vhd
-│       ├── rgb_to_ycrcb.vhd
-│       ├── roi_mask_generator.vhd
-│       ├── roi_tracker_update.vhd
-│       ├── vision_tracker_logic_top.vhd
-│       └── vision_tracker_pkg.vhd
-│
-├── PS/
-│   ├── GENERAL_OBJECT_TRACKING/
-│   │   ├── fpga.py
-│   │   └── run_object_tracker_pynq.py
-│   │
-│   └── VALIDATED_HAND_TRACKING/
-│       ├── fpga.py
-│       ├── mp_palmdet.py
-│       ├── palm.onnx
-│       └── run_tracker.py
-│
-├── docs/
-│   ├── general_object1.gif
-│   ├── general_object_2.gif
-│   ├── hand.gif
-│   ├── general_object_initial_roi_green_object.jpg
-│   ├── general_object_initial_roi_mug.jpg
-│   ├── general_object_pl_tracking_data.jpg
-│   ├── validated_hand_tracking_status.jpg
-│   ├── hdmi_tracker_integration.png
-│   └── full_system_fpga_utilization.png
-│
-├── full_system_simulation.py
-└── README.md
-```
-
 ---
 
 ## Summary

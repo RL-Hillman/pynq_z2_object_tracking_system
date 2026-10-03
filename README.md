@@ -13,24 +13,22 @@ The project includes **two software operating modes**, both using the same hardw
 - **Validated Hand Tracking** - demonstrates how an **AI model can be combined with the hardware tracker**. A palm-detection model running on the PS is used to acquire a hand and periodically validate that the FPGA is still tracking the correct target.
 
 ---
-## System Architecture
+## System Architecture and Vivado Integration
 
-The following diagram shows how the custom `vision_tracker_ip` is integrated into the PYNQ-Z2 video pipeline and how the PS communicates with the hardware tracker.
+The tracking system is implemented as a custom Vivado IP, `vision_tracker_ip`, integrated directly into the PYNQ-Z2 video pipeline.
 
-```mermaid
-flowchart LR
-    CAM[USB Webcam] --> PS[ARM PS<br/>Capture / UI / Initialization]
-    PS -->|frame delivery| VID[Video / VDMA / AXI4-Stream path]
-    VID --> UNPACK[Pixel Unpack]
-    UNPACK --> CLKIN[AXI4-Stream Clock Converter]
-    CLKIN --> TRACKER[Custom vision_tracker_ip<br/>FULL HARDWARE TRACKING]
-    TRACKER --> CLKOUT[AXI4-Stream Clock Converter]
-    CLKOUT --> CC[Color Convert]
-    CC --> HDMI[HDMI Frontend / TMDS]
-    HDMI --> MON[Monitor]
+The custom IP provides:
 
-    PS -->|AXI-Lite:<br/>initial ROI + Cr/Cb + enable| TRACKER
-    TRACKER -->|AXI-Lite status:<br/>center + size + ROI + prediction + lost| PS
+- AXI4-Stream video input (`S_AXIS_VIDEO`),
+- processed/debug AXI4-Stream video output (`VIDEO_OUT`),
+- AXI-Lite control/status interface (`S_AXI_TRACK`),
+- and the complete internal VHDL tracking pipeline.
+
+The repository includes the generated PYNQ overlay files:
+
+```text
+PL/design_1.bit
+PL/design_1.hwh
 ```
 
 ### PS / PL Partitioning
@@ -49,17 +47,90 @@ flowchart LR
 | Centroid calculation | | **✓** |
 | Dynamic acceptance threshold | | **✓** |
 | Velocity estimation and smoothing | | **✓** |
-| Next-position prediction | | **✓** |
+| Prediction of the object's next position | | **✓** |
 | Adaptive ROI position and size update | | **✓** |
 | Lost-object detection and recovery | | **✓** |
 | Continuous tracking state | | **✓** |
 | Debug-video generation | | **✓** |
 | Configuration / status communication | **AXI-Lite** | **AXI-Lite** |
 
+### Custom Tracker Integration into the Video Pipeline
 
+<p align="center">
+  <img src="docs/hdmi_tracker_integration.png" width="100%">
+</p>
 
----
+The figure above shows the actual Vivado integration of `vision_tracker_ip_0` inside the HDMI output subsystem.
 
+The main streaming path is:
+
+```text
+in_stream
+   ↓
+pixel_unpack
+   ↓
+axis_register_slice_0
+   ↓
+axis_clk_to_tracker
+   ↓
+vision_tracker_ip_0
+   ↓
+axis_clk_from_tracker
+   ↓
+color_convert
+   ↓
+HDMI frontend
+   ↓
+TMDS_out
+```
+
+The custom tracker is inserted **in-line in the FPGA video stream**, so incoming pixels pass directly through the hardware tracking pipeline.
+
+The surrounding blocks perform the following functions:
+
+1. **`pixel_unpack`** — converts the incoming packed video stream to the 24-bit pixel format used by the processing path.
+2. **`axis_register_slice_0`** — provides an AXI4-Stream register stage before the tracker.
+3. **`axis_clk_to_tracker`** — transfers the video stream into the tracker clock domain.
+4. **`vision_tracker_ip_0`** — executes the VHDL tracking pipeline and updates the tracking state and ROI.
+5. **`axis_clk_from_tracker`** — transfers the processed stream back to the HDMI/video clock domain.
+6. **`color_convert` and HDMI frontend** — format the resulting video stream and drive the physical TMDS output.
+
+### AXI-Lite Control and Status
+
+The tracker exposes a separate `S_AXI_TRACK` interface for communication with the PS.
+
+The interface is used to provide the initial tracking configuration and to expose tracking results and status. The tracker is memory-mapped at:
+
+```text
+0x43C30000
+```
+
+Runtime configuration includes the initial ROI, Cr/Cb thresholds, and tracking enable, while tracking information such as the current object position, size, ROI, and tracking status can be read by the PS.
+
+### Clock Domains and Tracker Operating Frequency
+
+The custom `vision_tracker_ip` operates in a dedicated **100 MHz tracking clock domain**, while the surrounding video infrastructure also uses a **142 MHz** domain.
+
+The two AXI4-Stream clock converters provide the required clock-domain crossings:
+
+```text
+Video / HDMI domain
+        ↓
+axis_clk_to_tracker
+        ↓
+100 MHz tracking domain
+        ↓
+vision_tracker_ip_0
+        ↓
+axis_clk_from_tracker
+        ↓
+Video / HDMI domain
+```
+
+The dedicated tracking clock domain, together with registered pipeline stages inside the VHDL implementation, was used to meet the implemented timing requirements.
+
+> **TODO — Add full top-level Vivado Block Design screenshot here**  
+> Suggested file: `docs/vivado_block_design.png`
 # FPGA / PL Design
 
 ## Fully Autonomous Frame-by-Frame Hardware Tracking
@@ -466,118 +537,6 @@ The number of retries is bounded so software cannot be permanently blocked by a 
 
 ---
 
-## Vivado Integration
-
-The VHDL tracking logic is packaged as a custom Vivado IP containing:
-
-- AXI4-Stream video input (`S_AXIS_VIDEO`),
-- processed/debug AXI4-Stream video output (`VIDEO_OUT`),
-- AXI-Lite control/status interface (`S_AXI_TRACK`),
-- and the complete internal VHDL tracking pipeline.
-
-The repository includes the generated PYNQ overlay files:
-
-```text
-PL/design_1.bit
-PL/design_1.hwh
-```
-
-### Custom tracker integration into the HDMI output pipeline
-
-<p align="center">
-  <img src="docs/hdmi_tracker_integration.png" width="100%">
-</p>
-
-The figure above shows the **actual Vivado integration** of `vision_tracker_ip_0` inside the HDMI output subsystem.
-
-The main streaming path is:
-
-```text
-in_stream
-   ↓
-pixel_unpack
-   ↓
-axis_register_slice_0
-   ↓
-axis_clk_to_tracker
-   ↓
-vision_tracker_ip_0
-   ↓
-axis_clk_from_tracker
-   ↓
-color_convert
-   ↓
-HDMI frontend
-   ↓
-TMDS_out
-```
-
-The custom tracker is therefore not a detached software accelerator. It is physically inserted **in-line in the FPGA video stream**.
-
-#### 1. Pixel unpacking
-
-`pixel_unpack` converts the incoming packed video stream to the 24-bit pixel stream used by the processing path.
-
-#### 2. Stream buffering
-
-`axis_register_slice_0` provides an AXI4-Stream register stage before the custom tracker path.
-
-#### 3. Clock-domain transfer into the tracker
-
-`axis_clk_to_tracker` safely transfers the AXI4-Stream video into the clock domain used by `vision_tracker_ip_0`.
-
-#### 4. Full tracking inside `vision_tracker_ip_0`
-
-From this point, the custom IP owns the continuous tracking computation. Its internal VHDL pipeline is the one described earlier in **FPGA Processing Pipeline**, ending with a hardware-generated ROI/state update for the following frame.
-
-The software does **not** receive each frame, calculate the object center, and send a new ROI back to the FPGA. The ROI controller itself is VHDL logic inside the tracker.
-
-#### 5. Clock-domain transfer back to the HDMI path
-
-The processed output stream leaves the custom IP through `VIDEO_OUT` and passes through `axis_clk_from_tracker`.
-
-#### 6. HDMI output formatting
-
-The stream is passed through `color_convert` and then into the HDMI frontend, which ultimately drives the PYNQ-Z2 physical TMDS output and the connected monitor.
-
-### AXI-Lite control path
-
-The tracker also exposes `S_AXI_TRACK`, independent of the pixel stream.
-
-The PS uses this interface to provide initial configuration and to read status. The tracker is memory-mapped at:
-
-```text
-0x43C30000
-```
-
-This control path carries configuration/status only. **The continuous tracking datapath does not run through the ARM processor.**
-
-### Clock domains and tracker operating frequency
-
-The block design contains multiple clock domains. The custom `vision_tracker_ip` was integrated in a dedicated **100 MHz tracking clock domain**, while the surrounding video infrastructure also uses a **142 MHz** domain.
-
-The two AXI4-Stream clock converters surrounding the tracker provide the required clock-domain crossings:
-
-```text
-video / HDMI domain
-        ↓
-axis_clk_to_tracker
-        ↓
-100 MHz tracking domain
-        ↓
-vision_tracker_ip_0
-        ↓
-axis_clk_from_tracker
-        ↓
-video / HDMI domain
-```
-
-Using a dedicated 100 MHz tracker domain, together with registered pipeline stages inside the VHDL design, keeps the continuous hardware tracking path compatible with the implemented timing constraints.
-
-> **Hardware integration result:** camera frames may be delivered by software into the PYNQ video infrastructure, but once the pixel stream enters the custom tracker, segmentation, measurement, center calculation, prediction, ROI control, loss recovery and debug rendering are all performed autonomously in PL.
-
-> **TODO — Add full top-level Vivado Block Design screenshot here**  
-> Suggested file: `docs/vivado_block_design.png`
 
 ---
 

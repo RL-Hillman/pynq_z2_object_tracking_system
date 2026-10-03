@@ -540,21 +540,15 @@ The status output includes PS acquisition and validation events together with th
 ---
 # FPGA Implementation Results
 
-The final Vivado implementation confirms that the complete system — including the PYNQ video infrastructure and the custom hardware tracker — fits comfortably in the Zynq-7000 device and meets the specified timing constraints.
-
-## Operating Frequency
-
-The custom `vision_tracker_ip` operates in a dedicated **100 MHz FPGA clock domain**.
-
-The surrounding video design also contains a **142 MHz** clock domain, so AXI4-Stream clock converters are used before and after the custom tracker to cross between the video and tracking domains safely.
+The final Vivado implementation confirms that the complete system - including the PYNQ video infrastructure and the custom hardware tracker - fits comfortably in the Zynq-7000 device and meets the specified timing constraints.
 
 ## Timing Closure
 
 Post-implementation Vivado analysis confirmed that **all user-specified timing constraints are met**, with no failing setup or hold endpoints.
 
-Timing closure was treated as an architectural requirement during the VHDL design rather than as a final cleanup step. Several computationally heavier operations were deliberately split across registered stages so that the tracker would not depend on long combinational paths.
+Timing closure was treated as an architectural requirement throughout the VHDL design. Computationally intensive operations were therefore divided across registered stages rather than implemented as long combinational paths.
 
-For example, the accepted-frame update in `roi_tracker_update` is pipelined across separate stages for:
+For example, In `roi_tracker_update`, the accepted-frame update is pipelined as:
 
 ```text
 Velocity calculation
@@ -566,11 +560,11 @@ ROI sizing
 State / ROI commit
 ```
 
-The loss-recovery path is also split into separate expansion and commit stages.
+The loss-recovery path is similarly divided into separate ROI expansion and commit stages.
 
-In `object_measurement`, frame accumulation is separated from centroid division. After one frame has been accumulated, the X and Y centroid calculations proceed using sequential dividers while the next frame can already begin accumulating.
+In `object_measurement`, frame accumulation is separated from centroid calculation. After a frame is completed, the X and Y centroids are calculated using sequential dividers that distribute the division operation across multiple clock cycles.
 
-Together with the dedicated **100 MHz tracking clock domain** and the AXI4-Stream clock-domain converters surrounding the tracker, these design choices allowed the implemented system to meet its timing requirements.
+Together with the dedicated **100 MHz tracking clock domain** and the AXI4-Stream clock-domain converters surrounding the tracker, these architectural choices allowed the implemented design to meet all timing requirements.
 
 ## Full-System FPGA Resource Utilization
 
@@ -584,7 +578,7 @@ They include the video/HDMI infrastructure, AXI interconnects, clocking logic, V
 
 Despite including the complete video and control infrastructure, the implemented design uses less than one quarter of the available LUT and FF resources and less than 10% of the available BRAM and DSP resources.
 
-This leaves substantial programmable-logic capacity for future extensions such as additional image features, multiple-object support or further hardware acceleration.
+This leaves substantial programmable-logic capacity for future extensions and features.
 
 ---
 

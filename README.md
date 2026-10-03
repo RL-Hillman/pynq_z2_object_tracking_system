@@ -41,14 +41,14 @@ The surrounding blocks perform the following functions:
 5. **`axis_clk_from_tracker`** - transfers the processed stream back to the HDMI/video clock domain.
 6. **`color_convert` and HDMI frontend** - format the resulting video stream and drive the physical TMDS output.
 
-## AXI Interfaces
+### AXI Interfaces
 
 The custom `vision_tracker_ip` uses two AXI interfaces with separate roles:
 
 - **AXI4-Stream** — transports the video stream through the hardware tracking pipeline.
 - **AXI-Lite** — provides configuration and status communication between the PS and the tracker.
 
-### AXI4-Stream Video
+#### AXI4-Stream Video
 
 The video interface transports 24-bit RGB pixels together with the standard AXI4-Stream video control signals:
 
@@ -60,7 +60,7 @@ The video interface transports 24-bit RGB pixels together with the standard AXI4
 
 The tracker also produces an AXI4-Stream output carrying the processed/debug video.
 
-#### Clock-Domain Crossing
+##### Clock-Domain Crossing
 
 The custom `vision_tracker_ip` operates in a dedicated **100 MHz tracking clock domain**, while the surrounding video infrastructure also uses a **142 MHz** domain.
 
@@ -82,7 +82,7 @@ Video / HDMI domain
 
 The dedicated tracking clock domain, together with registered pipeline stages inside the VHDL implementation, was used to meet the implemented timing requirements.
 
-### AXI-Lite Control and Status
+#### AXI-Lite Control and Status
 
 The PS configures and observes the tracker through the 32-bit `S_AXI_TRACK` AXI-Lite interface.
 
@@ -94,7 +94,7 @@ The tracker is memory-mapped at:
 
 Runtime configuration includes the initial ROI, Cr/Cb thresholds, and tracking enable. Tracking information such as the current object position, size, ROI, prediction, and tracking status can be read by the PS.
 
-#### Register Map
+##### Register Map
 
 | Offset | Direction | Register | Description |
 |---:|:---:|---|---|

@@ -65,23 +65,30 @@ The surrounding blocks perform the following functions:
 5. **`axis_clk_from_tracker`** - transfers the processed stream back to the HDMI/video clock domain.
 6. **`color_convert` and HDMI frontend** - format the resulting video stream and drive the physical TMDS output.
 
-### AXI-Lite Control and Status
+## AXI Interfaces
 
-The tracker exposes a separate `S_AXI_TRACK` interface for communication with the PS.
+The custom `vision_tracker_ip` uses two AXI interfaces with separate roles:
 
-The interface is used to provide the initial tracking configuration and to expose tracking results and status. The tracker is memory-mapped at:
+- **AXI4-Stream** — transports the video stream through the hardware tracking pipeline.
+- **AXI-Lite** — provides configuration and status communication between the PS and the tracker.
 
-```text
-0x43C30000
-```
+### AXI4-Stream Video
 
-Runtime configuration includes the initial ROI, Cr/Cb thresholds, and tracking enable, while tracking information such as the current object position, size, ROI, and tracking status can be read by the PS.
+The video interface transports 24-bit RGB pixels together with the standard AXI4-Stream video control signals:
 
-### Clock Domains and Tracker Operating Frequency
+- `tdata` — RGB pixel data,
+- `tvalid` — valid pixel,
+- `tuser` — start of frame,
+- `tlast` — end of line,
+- `tready` — back-pressure / flow control.
+
+The tracker also produces an AXI4-Stream output carrying the processed/debug video.
+
+#### Clock-Domain Crossing
 
 The custom `vision_tracker_ip` operates in a dedicated **100 MHz tracking clock domain**, while the surrounding video infrastructure also uses a **142 MHz** domain.
 
-The two AXI4-Stream clock converters provide the required clock-domain crossings:
+Two AXI4-Stream clock converters provide the required clock-domain crossings:
 
 ```text
 Video / HDMI domain
@@ -98,6 +105,61 @@ Video / HDMI domain
 ```
 
 The dedicated tracking clock domain, together with registered pipeline stages inside the VHDL implementation, was used to meet the implemented timing requirements.
+
+### AXI-Lite Control and Status
+
+The PS configures and observes the tracker through the 32-bit `S_AXI_TRACK` AXI-Lite interface.
+
+The tracker is memory-mapped at:
+
+```text
+0x43C30000
+```
+
+Runtime configuration includes the initial ROI, Cr/Cb thresholds, and tracking enable. Tracking information such as the current object position, size, ROI, prediction, and tracking status can be read by the PS.
+
+#### Register Map
+
+| Offset | Direction | Register | Description |
+|---:|:---:|---|---|
+| `0x00` | PS → PL | `TRACKING_CONTROL` | Bit 0 enables tracking |
+| `0x04` | PL → PS | `TRACKING_STATUS` | Bit 0 = tracking lost |
+| `0x08` | PL → PS | `SNAPSHOT_COUNTER` | Increments on each coherent published result |
+| `0x0C` | PL → PS | `FRAME_WIDTH` | Hardware frame width |
+| `0x10` | PL → PS | `FRAME_HEIGHT` | Hardware frame height |
+| `0x14` | PS → PL | `INITIAL_ROI_X` | Initial ROI X |
+| `0x18` | PS → PL | `INITIAL_ROI_Y` | Initial ROI Y |
+| `0x1C` | PS → PL | `INITIAL_ROI_WIDTH` | Initial ROI width |
+| `0x20` | PS → PL | `INITIAL_ROI_HEIGHT` | Initial ROI height |
+| `0x24` | PS → PL | `OBJECT_THRESHOLDS` | Packed Cr/Cb bounds |
+| `0x28` | PL → PS | `OBJECT_CENTER_X` | Measured centroid X |
+| `0x2C` | PL → PS | `OBJECT_CENTER_Y` | Measured centroid Y |
+| `0x30` | PL → PS | `OBJECT_WIDTH` | Measured object width |
+| `0x34` | PL → PS | `OBJECT_HEIGHT` | Measured object height |
+| `0x38` | PL → PS | `OBJECT_PIXEL_COUNT` | Number of matching pixels |
+| `0x3C` | PL → PS | `TRACKING_ROI_X` | Current ROI X |
+| `0x40` | PL → PS | `TRACKING_ROI_Y` | Current ROI Y |
+| `0x44` | PL → PS | `TRACKING_ROI_WIDTH` | Current ROI width |
+| `0x48` | PL → PS | `TRACKING_ROI_HEIGHT` | Current ROI height |
+| `0x4C` | PL → PS | `PREDICTED_CENTER_X` | Signed predicted X |
+| `0x50` | PL → PS | `PREDICTED_CENTER_Y` | Signed predicted Y |
+
+The four 8-bit object thresholds are packed into `OBJECT_THRESHOLDS` (`0x24`) as:
+
+```text
+bits  7:0   = Cr min
+bits 15:8   = Cr max
+bits 23:16  = Cb min
+bits 31:24  = Cb max
+```
+
+#### Coherent Snapshot Reads
+
+`fpga.py` reads `SNAPSHOT_COUNTER` before and after reading the complete tracking-status register group.
+
+If the counter changes during the read, the software retries the operation so that the returned `TrackingData` represents a single coherent hardware snapshot.
+
+The number of retries is bounded so that software cannot remain blocked by a continuously updating producer.
 
 # FPGA / PL Design
 
@@ -436,74 +498,7 @@ The PS is therefore reserved for tasks where software flexibility is more useful
 
 ---
 
-## AXI Interfaces
 
-The custom IP exposes two different interfaces for two different roles.
-
-### AXI4-Stream Video
-
-The video interface transports 24-bit RGB pixels and standard video-stream synchronization:
-
-- `tdata` — RGB pixel data,
-- `tvalid` — valid pixel,
-- `tuser` — start of frame,
-- `tlast` — end of line,
-- `tready` — back-pressure / flow control.
-
-The tracker produces a second AXI4-Stream carrying the generated debug video.
-
-### AXI-Lite Control and Status
-
-The PS controls and observes the tracker through a 32-bit AXI-Lite register interface.
-
-Current software base address:
-
-```text
-0x43C30000
-```
-
-#### Register map
-
-| Offset | Direction | Register | Description |
-|---:|:---:|---|---|
-| `0x00` | PS → PL | `TRACKING_CONTROL` | Bit 0 enables tracking |
-| `0x04` | PL → PS | `TRACKING_STATUS` | Bit 0 = tracking lost |
-| `0x08` | PL → PS | `SNAPSHOT_COUNTER` | Increments on each coherent published result |
-| `0x0C` | PL → PS | `FRAME_WIDTH` | Hardware frame width |
-| `0x10` | PL → PS | `FRAME_HEIGHT` | Hardware frame height |
-| `0x14` | PS → PL | `INITIAL_ROI_X` | Initial ROI X |
-| `0x18` | PS → PL | `INITIAL_ROI_Y` | Initial ROI Y |
-| `0x1C` | PS → PL | `INITIAL_ROI_WIDTH` | Initial ROI width |
-| `0x20` | PS → PL | `INITIAL_ROI_HEIGHT` | Initial ROI height |
-| `0x24` | PS → PL | `OBJECT_THRESHOLDS` | Packed Cr/Cb bounds |
-| `0x28` | PL → PS | `OBJECT_CENTER_X` | Measured centroid X |
-| `0x2C` | PL → PS | `OBJECT_CENTER_Y` | Measured centroid Y |
-| `0x30` | PL → PS | `OBJECT_WIDTH` | Measured object width |
-| `0x34` | PL → PS | `OBJECT_HEIGHT` | Measured object height |
-| `0x38` | PL → PS | `OBJECT_PIXEL_COUNT` | Number of matching pixels |
-| `0x3C` | PL → PS | `TRACKING_ROI_X` | Current ROI X |
-| `0x40` | PL → PS | `TRACKING_ROI_Y` | Current ROI Y |
-| `0x44` | PL → PS | `TRACKING_ROI_WIDTH` | Current ROI width |
-| `0x48` | PL → PS | `TRACKING_ROI_HEIGHT` | Current ROI height |
-| `0x4C` | PL → PS | `PREDICTED_CENTER_X` | Signed predicted X |
-| `0x50` | PL → PS | `PREDICTED_CENTER_Y` | Signed predicted Y |
-
-The four 8-bit object thresholds are packed into `0x24` as:
-
-```text
-bits  7:0   = Cr min
-bits 15:8   = Cr max
-bits 23:16  = Cb min
-bits 31:24  = Cb max
-```
-
-### Coherent snapshot reads
-
-`fpga.py` reads the snapshot counter before and after the complete status-register group. If the counter changes during the read, software retries so that the returned `TrackingData` corresponds to one coherent PL snapshot.
-
-The number of retries is bounded so software cannot be permanently blocked by a rapidly updating producer.
-
----
 
 
 ---

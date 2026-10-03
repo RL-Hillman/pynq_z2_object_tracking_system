@@ -285,7 +285,7 @@ The tracker then:
 5. predicts the next object center,
 6. increases ROI padding according to movement speed,
 7. builds a new ROI around the predicted position,
-8. atomically publishes the completed tracking state.
+8. publishes the completed tracking state.
 
 Velocity smoothing:
 
@@ -335,7 +335,7 @@ Instead, it expands the ROI around the previous predicted position.
 
 The loss search is **direction-aware**: the last accepted velocity is used to provide more search space in the direction in which the object was previously moving.
 
-The search region also grows progressively when several consecutive frames are missed.
+The search region grows progressively when several consecutive frames are missed.
 
 Loss recovery behavior is controlled by parameters including:
 
@@ -351,42 +351,7 @@ MAX_LOSS_H  Maximum loss-search ROI height
 
 This allows the search area to expand gradually when tracking becomes uncertain while keeping the ROI bounded.
 
-### Timing-oriented tracker pipelining
-
-The tracker update is split across multiple registered stages rather than performing the complete tracking calculation in a single clock cycle.
-
-For an accepted measurement:
-
-```text
-ACCEPT_VELOCITY
-      ↓
-ACCEPT_PREDICT
-      ↓
-ACCEPT_ROI
-      ↓
-ACCEPT_COMMIT
-```
-
-The stages separate the main calculations:
-
-1. **Velocity stage** — calculates raw X/Y velocity, limits it using `VEL_MAX`, and applies velocity smoothing.
-2. **Prediction stage** — calculates the predicted object center and speed-dependent padding.
-3. **ROI stage** — calculates and constrains the next ROI dimensions.
-4. **Commit stage** — publishes the new ROI and completed tracking state together.
-
-Loss handling is also pipelined:
-
-```text
-TRACKER_IDLE
-      ↓
-LOSS_EXPAND
-      ↓
-LOSS_COMMIT
-```
-
-The requested directional expansion is calculated first, then constrained to the allowed loss-search ROI size before the updated ROI is committed.
-
-Splitting these operations across registered stages reduces the combinational path length and improves timing closure.
+**The tracking logic is implemented as a multi-stage registered state machine to maintain a short combinational path between registers.**
 
 ### 6. `object_display.vhd`
 

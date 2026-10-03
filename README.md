@@ -32,28 +32,6 @@ The custom IP provides:
 
 The figure above shows the actual Vivado integration of `vision_tracker_ip_0` inside the HDMI output subsystem.
 
-The main streaming path is:
-
-```text
-in_stream
-   ↓
-pixel_unpack
-   ↓
-axis_register_slice_0
-   ↓
-axis_clk_to_tracker
-   ↓
-vision_tracker_ip_0
-   ↓
-axis_clk_from_tracker
-   ↓
-color_convert
-   ↓
-HDMI frontend
-   ↓
-TMDS_out
-```
-
 The custom tracker is inserted **in-line in the FPGA video stream**, so incoming pixels pass directly through the hardware tracking pipeline.
 
 The surrounding blocks perform the following functions:

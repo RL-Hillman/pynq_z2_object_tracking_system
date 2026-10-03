@@ -19,8 +19,8 @@ The following demonstrations show the system running on the PYNQ-Z2 in both gene
     <td width="33%" align="center"><img src="docs/hand.gif" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><b>General Object Tracking — Demo 1</b></td>
-    <td align="center"><b>General Object Tracking — Demo 2</b></td>
+    <td align="center"><b>General Object Tracking — 1</b></td>
+    <td align="center"><b>General Object Tracking — 2</b></td>
     <td align="center"><b>Validated Hand Tracking</b></td>
   </tr>
 </table>

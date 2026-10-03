@@ -31,29 +31,6 @@ PL/design_1.bit
 PL/design_1.hwh
 ```
 
-### PS / PL Partitioning
-
-| Function | PS / ARM | PL / FPGA |
-|---|:---:|:---:|
-| Camera capture and frame delivery | ✓ | |
-| User interface and result display | ✓ | |
-| Initial object acquisition | ✓ | |
-| Initial Cr/Cb threshold learning | ✓ | |
-| AI palm detection / periodic validation | ✓ | |
-| RGB → YCrCb conversion | | **✓** |
-| ROI-based object segmentation | | **✓** |
-| 5 × 5 mask filtering | | **✓** |
-| Object measurement and pixel counting | | **✓** |
-| Centroid calculation | | **✓** |
-| Dynamic acceptance threshold | | **✓** |
-| Velocity estimation and smoothing | | **✓** |
-| Prediction of the object's next position | | **✓** |
-| Adaptive ROI position and size update | | **✓** |
-| Lost-object detection and recovery | | **✓** |
-| Continuous tracking state | | **✓** |
-| Debug-video generation | | **✓** |
-| Configuration / status communication | **AXI-Lite** | **AXI-Lite** |
-
 ### Custom Tracker Integration into the Video Pipeline
 
 <p align="center">

@@ -408,10 +408,8 @@ coordinate_sum_bits()
 ```
 
 This centralizes the resolution-dependent configuration and allows the hardware to be adapted to a different frame size without manually recalculating signal widths throughout the individual VHDL modules.
-````
 
 ---
-
 ## Why This Architecture Fits an FPGA
 
 The tracker combines two workloads that map naturally to programmable logic:

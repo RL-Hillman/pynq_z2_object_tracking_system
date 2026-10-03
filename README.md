@@ -217,6 +217,7 @@ A successful validation does **not** continuously update the PL ROI. As long as 
 
 Palm inference runs in a background worker so that validation does not block the camera-to-video-to-PL processing path.
 
+The PS-side behavior is configurable, including the validation frequency, detector confidence requirements, ROI-overlap requirements, recovery sensitivity, and the parameters used to define and calibrate the initial hand ROI.
 
 ### PS/PL validation status
 

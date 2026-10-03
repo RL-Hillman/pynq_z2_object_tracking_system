@@ -549,25 +549,6 @@ The status output includes PS acquisition and validation events together with th
 - **HDMI cable** for the video output
 - **Monitor/display with HDMI input** for displaying the tracking result
 - USB cable for the board's serial/UART connection
-- Computer running Windows
-- PYNQ-compatible SD card/image
-
-## Required Software
-
-On the computer:
-
-- PuTTY or another serial terminal
-- Web browser
-
-On the PYNQ image / runtime:
-
-- PYNQ Python environment
-- OpenCV (`cv2`)
-- NumPy
-- Jupyter / IPython widgets used by the interactive interface
-
-The validated-hand mode also uses OpenCV DNN to load the included `palm.onnx` model.
-
 ---
 
 # Connecting to the PYNQ-Z2
@@ -588,7 +569,7 @@ COM3
 
 The exact COM number may be different on every computer.
 
-## Step 2 — Open a Serial Session in PuTTY
+## Step 2 — Open a Serial Session in PuTTY or another serial terminal
 
 Open PuTTY and configure:
 
@@ -616,12 +597,6 @@ For example:
 inet 192.168.2.99
 ```
 
-In this example the board's Ethernet address is:
-
-```text
-192.168.2.99
-```
-
 ## Step 3 — Configure the Computer's Ethernet Address
 
 Open the Windows settings for the Ethernet adapter and configure IPv4 manually.
@@ -642,15 +617,6 @@ Subnet mask: 255.255.255.0
 Gateway:     leave blank
 DNS:         leave blank
 ```
-
-So the direct connection becomes:
-
-```text
-Computer: 192.168.2.1
-PYNQ-Z2:  192.168.2.99
-```
-
-If the board reports a different subnet, choose a free computer address in that same subnet instead.
 
 ## Step 4 — Open the PYNQ Web Interface
 

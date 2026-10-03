@@ -112,41 +112,25 @@ When the PS reads the complete tracking result, `fpga.py` uses this counter to e
 
 ## FPGA / PL Design
 
-### Fully Autonomous Frame-by-Frame Hardware Tracking
-
-The most important engineering feature of this project is that the FPGA does more than accelerate one image-processing function. It contains the **complete tracking feedback loop**.
-
-A software-assisted tracker could use the FPGA only for thresholding or filtering and then send the result back to Python for object-center calculation and ROI movement. This design deliberately does **not** do that.
-
-Instead, the feedback path closes inside the PL:
+The FPGA implements a complete frame-to-frame tracking feedback loop. Measurements produced from frame **N** are used directly by the PL to calculate the tracking state and ROI for frame **N+1**.
 
 ```text
-incoming frame
-    ↓
-hardware segmentation
-    ↓
-hardware mask cleaning
-    ↓
-hardware object measurement
-    ↓
-hardware center calculation
-    ↓
-hardware velocity / prediction
-    ↓
-hardware ROI update
-    ↓
-next frame uses the new hardware ROI
+Frame N
+   ↓
+Hardware tracking and measurement
+   ↓
+Motion estimation and next-position prediction
+   ↓
+ROI update
+   ↓
+Frame N+1
 ```
 
-Therefore, once the initial configuration has been written, the ROI used on frame **N+1** is generated from the measurements of frame **N** without requiring a Python/OpenCV tracking calculation in between.
-
-The PS may read the published hardware state for display, diagnostics or validation, but those reads are **observational**. They are not required to calculate the normal next tracking state.
-
----
+This feedback loop is closed entirely inside the PL, allowing the hardware tracker to continuously update its own tracking state from one frame to the next.
 
 ### FPGA Processing Pipeline
 
-The custom tracker is composed of a sequence of VHDL blocks:
+The tracking engine is implemented as a sequence of dedicated VHDL blocks:
 
 ```mermaid
 flowchart TD

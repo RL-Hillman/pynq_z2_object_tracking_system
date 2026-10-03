@@ -61,7 +61,7 @@ The surrounding blocks perform the following functions:
 1. **`pixel_unpack`** - converts the incoming packed video stream to the 24-bit pixel format used by the processing path.
 2. **`axis_register_slice_0`** - provides an AXI4-Stream register stage before the tracker.
 3. **`axis_clk_to_tracker`** - transfers the video stream into the tracker clock domain.
-4. **`vision_tracker_ip_0`** - executes the VHDL tracking pipeline and updates the tracking state and ROI.
+4. **`vision_tracker_ip_0`** - executes the VHDL tracking pipeline and updates the tracking data.
 5. **`axis_clk_from_tracker`** - transfers the processed stream back to the HDMI/video clock domain.
 6. **`color_convert` and HDMI frontend** - format the resulting video stream and drive the physical TMDS output.
 

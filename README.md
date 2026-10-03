@@ -198,96 +198,122 @@ The filtered output is re-aligned to a complete frame raster so downstream block
 
 ### 4. `object_measurement.vhd`
 
-Calculates object statistics from the cleaned mask:
+Calculates the position, size, and center of the detected object from the cleaned binary mask.
 
-- leftmost, rightmost, topmost, and bottommost coordinates of the detected object,
-- bounding-box width and height,
-- matching-pixel count,
-- centroid X and Y.
+As each valid pixel arrives, every pixel classified as part of the object contributes to four running measurements:
+
+```text
+pixel_count    Number of matching pixels
+
+sum_x          Sum of the X coordinates of all matching pixels
+sum_y          Sum of the Y coordinates of all matching pixels
+
+min_x / max_x  Leftmost and rightmost matching-pixel coordinates
+min_y / max_y  Topmost and bottommost matching-pixel coordinates
+```
+
+The coordinate limits define the object's bounding box:
+
+```text
+object_width  = max_x - min_x + 1
+object_height = max_y - min_y + 1
+```
+
+The accumulated coordinate sums are used to calculate the object centroid:
+
+```text
+centroid_x = sum_x / pixel_count
+centroid_y = sum_y / pixel_count
+```
+
+The centroid therefore represents the average position of all matching object pixels, rather than simply the geometric center of the bounding box.
 
 The implementation separates the work into two clocked processes:
 
-1. A frame accumulator collects statistics for the current frame.
-2. Two sequential dividers calculate centroid X and Y from the completed-frame snapshot.
+1. A frame accumulator updates `pixel_count`, `sum_x`, `sum_y`, `min_x`, `max_x`, `min_y`, and `max_y` continuously as matching pixels arrive.
+2. At the end of the frame, the accumulated values are captured as a completed-frame snapshot, and two sequential dividers calculate `centroid_x` and `centroid_y`.
 
-While centroid division is being performed for one completed frame, the accumulator can already begin collecting the next frame.
+While centroid division is being performed for the completed frame, the accumulator can already begin processing pixels from the next frame.
 
 ### 5. `roi_tracker_update.vhd`
 
 This block contains the main hardware tracking state machine.
 
-At the end of each measured frame the tracker chooses between two paths:
+At the end of each measured frame, the tracker chooses between two paths:
 
 #### ACCEPT
 
-If enough matching pixels were detected, the measurement is accepted. The tracker then:
+If enough matching pixels are detected, the measurement is accepted. The tracker then:
 
 1. stores the new measured center and size,
 2. calculates raw X/Y velocity,
-3. clamps velocity to `±VEL_MAX`,
-4. smooths velocity with the previous accepted velocity,
+3. limits the velocity using `VEL_MAX`,
+4. smooths the velocity using the previous accepted velocity,
 5. predicts the next object center,
 6. increases ROI padding according to movement speed,
 7. builds a tight ROI around the predicted position,
 8. atomically publishes the completed tracking state.
 
-Current velocity limit:
-
-```text
-VEL_MAX = 120 pixels/frame
-```
-
 Velocity smoothing:
 
 ```text
-smoothed_velocity = (raw_velocity + previous_smoothed_velocity) / 2
+smoothed_velocity =
+    (raw_velocity + previous_smoothed_velocity) / 2
 ```
 
 Prediction:
 
 ```text
-predicted_center = measured_center + smoothed_velocity
+predicted_center =
+    measured_center + smoothed_velocity
 ```
 
-Current normal-tracking ROI parameters:
+The normal-tracking ROI is controlled by configurable parameters including:
 
 ```text
-Base padding:          8 px
-Maximum padding:      40 px
-Maximum tracking ROI: 200 × 200 px
+VEL_MAX        Maximum allowed velocity
+PAD_BASE       Base ROI padding
+PAD_MAX        Maximum ROI padding
+TRACK_ROI_MAX  Maximum normal-tracking ROI size
 ```
 
-Padding grows with speed:
+Padding grows with the magnitude of the tracked object's motion:
 
 ```text
-padding = clamp(PAD_BASE + abs(smoothed_velocity) / 2,
-                0,
-                PAD_MAX)
+padding = clamp(
+    PAD_BASE + abs(smoothed_velocity) / 2,
+    0,
+    PAD_MAX
+)
 ```
+
+This allows the ROI to remain tight during slow motion while automatically providing additional search space when the object moves faster.
 
 #### LOSS
 
-If too few matching pixels are present, `tracking_lost` is asserted.
+If too few matching pixels are detected, `tracking_lost` is asserted.
 
-Instead of blindly making another full prediction without a new measurement, the PL expands the ROI that is already centered around the previous prediction. Expansion is **direction-aware**: more search area is added in the last known direction of motion.
+Instead of making another full prediction without a new measurement, the PL expands the ROI that is already centered around the previous predicted position.
 
-The expansion also increases with consecutive missed frames through a loss ramp.
+The loss search is **direction-aware**, adding more search area in the last known direction of motion.
 
-Current loss-search limits:
+The ROI also expands progressively across consecutive missed frames using a configurable loss ramp.
+
+Loss recovery is controlled by parameters including:
 
 ```text
-LOSS_BASE:             10 px
-LOSS_RAMP:              5 px per loss update
-LOSS_MIN:               5 px
-LOSS_MAX:              40 px
-Maximum loss ROI:      240 × 240 px
+LOSS_BASE      Initial loss-search expansion
+LOSS_RAMP      Additional expansion per consecutive loss
+LOSS_MIN       Minimum loss expansion
+LOSS_MAX       Maximum loss expansion
+LOSS_ROI_MAX   Maximum loss-search ROI size
 ```
 
-The ROI therefore grows only as needed and remains bounded.
+The search area therefore grows only as needed while remaining bounded.
 
 ### Timing-oriented tracker pipelining
 
-The tracker state update was deliberately split across multiple clock cycles rather than placing the complete decision path into one long combinational calculation.
+The tracker state update is deliberately split across multiple clock cycles rather than placing the complete decision path into one long combinational calculation.
 
 For an accepted measurement, `roi_tracker_update` progresses through four registered stages:
 
@@ -303,7 +329,7 @@ ACCEPT_COMMIT
 
 The stages separate the major calculations:
 
-1. **Velocity stage** — raw X/Y velocity is calculated, limited to `±VEL_MAX`, and smoothed.
+1. **Velocity stage** — raw X/Y velocity is calculated, limited by `VEL_MAX`, and smoothed.
 2. **Prediction stage** — the next object center and speed-dependent padding are calculated.
 3. **ROI stage** — the next ROI width and height are formed and constrained.
 4. **Commit stage** — the new ROI position and completed tracking state are published atomically.
@@ -318,22 +344,25 @@ LOSS_EXPAND
 LOSS_COMMIT
 ```
 
-This separates the requested loss expansion from the final bounded ROI update and avoids building a single long combinational loss-recovery path.
+This separates the requested loss expansion from the final bounded ROI update and avoids creating a single long combinational loss-recovery path.
 
-The same timing-oriented design philosophy is used in `object_measurement`: frame accumulation is independent from centroid division, and X/Y centroids are calculated by two small sequential dividers in parallel. While the completed frame is being divided, accumulation for the following frame can already continue.
+The same timing-oriented design philosophy is used in `object_measurement.vhd`: frame accumulation is independent from centroid division, and the X/Y centroids are calculated by two small sequential dividers in parallel. While the completed frame is being divided, accumulation for the following frame can already continue.
 
 ### Dynamic acceptance threshold
 
-After an accepted object measurement, the required matching-pixel count for the next frame is derived from the measured object size:
+After an accepted object measurement, the required matching-pixel count for the next frame is derived from the measured object size.
+
+Conceptually:
 
 ```text
 min_accepted_pixels = max(
-    150,
-    object_width × object_height / 8
+    minimum_noise_floor,
+    object_width × object_height / scaling_factor
 )
 ```
 
-This gives the tracker a minimum noise floor while allowing the acceptance threshold to scale with the tracked object.
+This provides a minimum noise floor while allowing the acceptance threshold to scale automatically with the size of the tracked object.
+````
 
 ### 6. `object_display.vhd`
 

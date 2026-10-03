@@ -107,7 +107,7 @@ bits 31:24  = Cb max
 The PL increments `SNAPSHOT_COUNTER` whenever a new tracking result is published. This allows the PS to detect when fresh tracking data is available.
 
 When the PS reads the complete tracking result, `fpga.py` uses this counter to ensure that **all values being read belong to the same processed frame**. `fpga.py` checks the counter both before and after reading the tracking registers; if it changes during the read, a new result was published before the read was completed, so the registers are read again.
----
+
 # Operating Modes
 
 ## 1. General Object Tracking

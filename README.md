@@ -315,10 +315,10 @@ Calculates the position, size, and center of the detected object from the cleane
 As each valid pixel arrives, every pixel classified as part of the object contributes to four running measurements:
 
 ```text
-pixel_count    Number of matching pixels
+pixel_count - Number of matching pixels
 
-sum_x -          Sum of the X coordinates of all matching pixels
-sum_y -         Sum of the Y coordinates of all matching pixels
+sum_x - Sum of the X coordinates of all matching pixels
+sum_y - Sum of the Y coordinates of all matching pixels
 
 min_x / max_x - Leftmost and rightmost matching-pixel coordinates
 min_y / max_y - Topmost and bottommost matching-pixel coordinates

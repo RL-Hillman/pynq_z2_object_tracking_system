@@ -562,7 +562,7 @@ Despite including the complete video and control infrastructure, the implemented
 
 This leaves substantial programmable-logic capacity for future extensions and features.
 
----
+
 # Repository Structure
 
 ```text
@@ -712,7 +712,6 @@ If the hostname `pynq` does not resolve, use the board IP found with `ifconfig`,
 http://192.168.2.99:9090
 ```
 
----
 # Running the Project on the Board
 
 ## General Object Tracking

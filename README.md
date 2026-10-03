@@ -538,6 +538,55 @@ The status output includes PS acquisition and validation events together with th
 <p align="center"><i>The FPGA tracker following the detected hand while the PS performs acquisition and periodic high-level validation.</i></p>
 
 ---
+# FPGA Implementation Results
+
+The final Vivado implementation confirms that the complete system — including the PYNQ video infrastructure and the custom hardware tracker — fits comfortably in the Zynq-7000 device and meets the specified timing constraints.
+
+## Operating Frequency
+
+The custom `vision_tracker_ip` operates in a dedicated **100 MHz FPGA clock domain**.
+
+The surrounding video design also contains a **142 MHz** clock domain, so AXI4-Stream clock converters are used before and after the custom tracker to cross between the video and tracking domains safely.
+
+## Timing Closure
+
+Post-implementation Vivado analysis confirmed that **all user-specified timing constraints are met**, with no failing setup or hold endpoints.
+
+Timing closure was treated as an architectural requirement during the VHDL design rather than as a final cleanup step. Several computationally heavier operations were deliberately split across registered stages so that the tracker would not depend on long combinational paths.
+
+For example, the accepted-frame update in `roi_tracker_update` is pipelined across separate stages for:
+
+```text
+Velocity calculation
+        ↓
+Prediction
+        ↓
+ROI sizing
+        ↓
+State / ROI commit
+```
+
+The loss-recovery path is also split into separate expansion and commit stages.
+
+In `object_measurement`, frame accumulation is separated from centroid division. After one frame has been accumulated, the X and Y centroid calculations proceed using sequential dividers while the next frame can already begin accumulating.
+
+Together with the dedicated **100 MHz tracking clock domain** and the AXI4-Stream clock-domain converters surrounding the tracker, these design choices allowed the implemented system to meet its timing requirements.
+
+## Full-System FPGA Resource Utilization
+
+The resource figures below represent the **complete implemented PYNQ-Z2 design**, not only `vision_tracker_ip`.
+
+They include the video/HDMI infrastructure, AXI interconnects, clocking logic, VDMA-related logic, control infrastructure and the custom hardware tracker.
+
+<p align="center">
+  <img src="docs/full_system_fpga_utilization.png" width="70%">
+</p>
+
+Despite including the complete video and control infrastructure, the implemented design uses less than one quarter of the available LUT and FF resources and less than 10% of the available BRAM and DSP resources.
+
+This leaves substantial programmable-logic capacity for future extensions such as additional image features, multiple-object support or further hardware acceleration.
+
+---
 
 # Hardware Setup
 
@@ -680,194 +729,6 @@ Open a Jupyter notebook and run:
 %run run_tracker.py
 ```
 ---
-
-# Hardware-Matched PC Simulation
-
-The repository also contains:
-
-```text
-full_system_simulation.py
-```
-
-The simulator reproduces the current tracking algorithm at frame level and is intended for algorithm tuning before committing new constants to VHDL and rebuilding the FPGA design.
-
-It models:
-
-```text
-rgb_to_ycrcb
-      ↓
-roi_mask_generator
-      ↓
-mask_cleaner
-      ↓
-object_measurement
-      ↓
-roi_tracker_update
-      ↓
-object_display
-```
-
-The default `HWConfig` values match the current VHDL top-level configuration.
-
-### Run with a webcam
-
-```bash
-python full_system_simulation.py
-```
-
-or choose another camera:
-
-```bash
-python full_system_simulation.py --camera 1
-```
-
-### Run with a recorded video
-
-```bash
-python full_system_simulation.py --video path/to/video.mp4
-```
-
-### Controls
-
-```text
-S       Select / reselect object
-R       Reset tracking
-Q / ESC Quit
-```
-
-The simulator opens two useful windows:
-
-- **SIM DEBUG** — original camera image plus diagnostic information.
-- **REAL SYSTEM - exact PL HDMI** — software rendering of the expected hardware debug output.
-
-> **TODO — Add simulation screenshot here**  
-> Suggested file: `docs/hardware_matched_simulation.png`
-
-This simulation was used as a development tool for changing tracking parameters quickly before transferring the selected values back into the VHDL implementation.
-
----
-
-# Current Hardware Configuration
-
-| Parameter | Current value |
-|---|---:|
-| Frame width | 640 px |
-| Frame height | 480 px |
-| Mask-cleaner kernel | 5 × 5 |
-| Majority threshold | 13 / 25 |
-| Velocity limit (`VEL_MAX`) | 120 px/frame |
-| Normal ROI base padding | 8 px |
-| Normal ROI maximum padding | 40 px |
-| Maximum normal-tracking ROI | 200 × 200 px |
-| Pixel-count floor | 150 |
-| Pixel-count area divisor | 8 |
-| Loss base expansion | 10 px |
-| Loss ramp | 5 px/update |
-| Loss expansion clamp | 5–40 px |
-| Maximum loss ROI | 240 × 240 px |
-| Debug ROI border | 2 px |
-| Center-marker radius | 4 px |
-
-## Changing the Hardware Configuration
-
-The tracker was designed so that important hardware parameters can be changed without rewriting the complete design.
-
-### Resolution and width-dependent parameters
-
-Edit:
-
-```text
-PL/src/vision_tracker_pkg.vhd
-```
-
-For example:
-
-```vhdl
-constant FRAME_WIDTH  : positive := 640;
-constant FRAME_HEIGHT : positive := 480;
-constant VEL_MAX      : positive := 120;
-```
-
-The package automatically derives the dependent coordinate, size, pixel-count, accumulator and prediction widths.
-
-### Tracking-behavior parameters
-
-The `roi_tracker_update` generic map in `vision_tracker_logic_top.vhd` controls values such as:
-
-- normal ROI padding,
-- maximum normal ROI size,
-- minimum accepted-pixel floor,
-- area scaling of the acceptance threshold,
-- loss expansion base/ramp,
-- maximum loss expansion,
-- maximum loss ROI dimensions.
-
-This makes it possible to tune the behavior for a different application and then synthesize a new hardware implementation.
-
-### Runtime parameters
-
-Object-specific values do not require a new bitstream. The PS can write:
-
-- tracking enable,
-- initial ROI X/Y/W/H,
-- Cr minimum/maximum,
-- Cb minimum/maximum.
-
-After these values seed the tracker, the evolving center, prediction and ROI are once again generated by the PL.
-
----
-
-
-# FPGA Implementation Results
-
-The final Vivado implementation confirms that the complete system — including the PYNQ video infrastructure and the custom hardware tracker — fits comfortably in the Zynq-7000 device and meets the specified timing constraints.
-
-## Operating Frequency
-
-The custom `vision_tracker_ip` operates in a dedicated **100 MHz FPGA clock domain**.
-
-The surrounding video design also contains a **142 MHz** clock domain, so AXI4-Stream clock converters are used before and after the custom tracker to cross between the video and tracking domains safely.
-
-## Timing Closure
-
-Post-implementation Vivado analysis confirmed that **all user-specified timing constraints are met**, with no failing setup or hold endpoints.
-
-Timing closure was treated as an architectural requirement during the VHDL design rather than as a final cleanup step. Several computationally heavier operations were deliberately split across registered stages so that the tracker would not depend on long combinational paths.
-
-For example, the accepted-frame update in `roi_tracker_update` is pipelined across separate stages for:
-
-```text
-Velocity calculation
-        ↓
-Prediction
-        ↓
-ROI sizing
-        ↓
-State / ROI commit
-```
-
-The loss-recovery path is also split into separate expansion and commit stages.
-
-In `object_measurement`, frame accumulation is separated from centroid division. After one frame has been accumulated, the X and Y centroid calculations proceed using sequential dividers while the next frame can already begin accumulating.
-
-Together with the dedicated **100 MHz tracking clock domain** and the AXI4-Stream clock-domain converters surrounding the tracker, these design choices allowed the implemented system to meet its timing requirements.
-
-## Full-System FPGA Resource Utilization
-
-The resource figures below represent the **complete implemented PYNQ-Z2 design**, not only `vision_tracker_ip`.
-
-They include the video/HDMI infrastructure, AXI interconnects, clocking logic, VDMA-related logic, control infrastructure and the custom hardware tracker.
-
-<p align="center">
-  <img src="docs/full_system_fpga_utilization.png" width="70%">
-</p>
-
-Despite including the complete video and control infrastructure, the implemented design uses less than one quarter of the available LUT and FF resources and less than 10% of the available BRAM and DSP resources.
-
-This leaves substantial programmable-logic capacity for future extensions such as additional image features, multiple-object support or further hardware acceleration.
-
----
-
 # Repository Structure
 
 ```text
@@ -918,59 +779,6 @@ pynq_z2_object_tracking_system/
 ```
 
 ---
-
-# Limitations
-
-The current tracker is intentionally lightweight and hardware-oriented. Its main limitations are:
-
-- The target is represented primarily by **Cr/Cb chrominance ranges**, so a visually similar object entering the active ROI may also match.
-- Large illumination or appearance changes can make the original learned threshold range less representative.
-- Normal tracking and loss-recovery ROI sizes are intentionally bounded.
-- The current implementation tracks one target at a time.
-- General-object initialization still requires the user to select the first ROI.
-- In validated-hand mode, palm acquisition/validation is a PS-side neural-network operation rather than an FPGA accelerator.
-- USB-camera capture is handled by the PS; the project accelerates the tracking pipeline rather than implementing a direct sensor-to-FPGA camera interface.
-
----
-
-# Future Work
-
-Possible extensions include:
-
-- automatic threshold adaptation while the object appearance changes,
-- multiple-object tracking,
-- additional hardware features beyond chrominance,
-- direct camera-to-PL streaming,
-- higher resolutions and additional video formats,
-- deeper pipelining / resource optimization after timing analysis,
-- FPGA acceleration of the acquisition/validation neural network,
-- improved confidence scoring for ambiguous object masks,
-- runtime-adjustable tracker parameters through additional AXI-Lite registers.
-
----
-
-# Remaining Documentation Media
-
-The following engineering visuals can still be added before the final public release:
-
-1. **Physical hardware setup photo** — PYNQ-Z2, USB camera, Ethernet, HDMI cable and display.
-2. **FPGA debug-output screenshot** — white mask, green ROI, red measured center and blue predicted center.
-3. **Full Vivado Block Design screenshot** — top-level Zynq PS, VDMA/video hierarchy, AXI control and HDMI subsystem.
-4. **Polished architecture diagram** — PS/PL partitioning and video/control data paths.
-5. **Polished FPGA pipeline diagram** — the VHDL processing stages.
-6. **Hardware-matched PC simulation screenshot**.
-
-Recommended filenames:
-
-```text
-docs/
-├── hardware_setup.jpg
-├── hdmi_tracking_output.png
-├── vivado_block_design.png
-├── system_architecture.png
-├── fpga_pipeline.png
-└── hardware_matched_simulation.png
-```
 
 ## Summary
 

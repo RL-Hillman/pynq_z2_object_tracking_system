@@ -110,9 +110,9 @@ The PL increments `SNAPSHOT_COUNTER` whenever a new tracking result is published
 
 When the PS reads the complete tracking result, `fpga.py` uses this counter to ensure that **all values being read belong to the same processed frame**. `fpga.py` checks the counter both before and after reading the tracking registers; if it changes during the read, a new result was published before the read was completed, so the registers are read again.
 
-# FPGA / PL Design
+## FPGA / PL Design
 
-## Fully Autonomous Frame-by-Frame Hardware Tracking
+### Fully Autonomous Frame-by-Frame Hardware Tracking
 
 The most important engineering feature of this project is that the FPGA does more than accelerate one image-processing function. It contains the **complete tracking feedback loop**.
 
@@ -144,7 +144,7 @@ The PS may read the published hardware state for display, diagnostics or validat
 
 ---
 
-## FPGA Processing Pipeline
+### FPGA Processing Pipeline
 
 The custom tracker is composed of a sequence of VHDL blocks:
 
@@ -162,9 +162,6 @@ flowchart TD
     F --> H[Coherent PS Result Snapshot]
     G --> I[Debug Video Stream]
 ```
-
-> **TODO — Add polished FPGA pipeline figure here**  
-> Suggested file: `docs/fpga_pipeline.png`
 
 ### 1. `rgb_to_ycrcb.vhd`
 

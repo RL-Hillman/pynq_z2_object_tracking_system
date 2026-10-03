@@ -50,7 +50,7 @@ BITSTREAM_PATH = os.path.join(HERE, BITSTREAM_FILENAME)
 FPGA_BASE_ADDR = 0x43C30000
 CAMERA_INDEX = 0
 
-RUNTIME_VERSION = "2026-10-02-pl-tracking-v5"
+RUNTIME_VERSION = "2026-10-03-pl-tracking-v5"
 
 EXPECTED_FRAME_WIDTH = 640
 EXPECTED_FRAME_HEIGHT = 480
@@ -312,7 +312,6 @@ class NotebookPLOnlyUI:
                 f"ROI=({roi[0]},{roi[1]},{roi[2]},{roi[3]}) | "
                 f"Cr=[{cr_min},{cr_max}] | "
                 f"Cb=[{cb_min},{cb_max}] | "
-                "PS tracking check=OFF | PS correction=OFF"
                 "</pre>"
             )
         except Exception:

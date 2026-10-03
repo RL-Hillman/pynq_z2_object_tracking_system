@@ -1,10 +1,28 @@
 # PYNQ-Z2 FPGA-Based Real-Time Object Tracking System
 
-A hardware/software real-time visual tracking system implemented on the **PYNQ-Z2**, with the continuous tracking loop implemented in FPGA logic.
+An **FPGA-first real-time object tracking system** implemented on the **PYNQ-Z2**, with the complete continuous tracking loop executed in Programmable Logic (PL).
 
-The project combines a streaming VHDL image-processing pipeline, adaptive ROI tracking, motion prediction, loss recovery, AXI-Lite control/status, and Python-based initialization on the ARM Processing System (PS). The hardware tracker is general-purpose: it can track a user-selected object based on learned chrominance characteristics. A second operating mode uses palm detection on the PS as a reference application for automatic hand acquisition and periodic validation.
+The ARM Processing System (PS) is used to capture/forward camera frames, perform one-time initialization, provide user interaction, and configure the FPGA. **Once a frame enters the custom `vision_tracker_ip`, the PS does not calculate the object's position, center, motion, prediction, ROI, loss state, or recovery search. Those operations are performed entirely in hardware.**
 
-> **Primary design goal:** move the continuous, frame-by-frame tracking work into the Programmable Logic (PL), while using the PS only where software is most useful: initialization, user interaction, configuration, and optional high-level validation.
+The custom VHDL tracker performs, frame after frame:
+
+- RGB-to-YCrCb conversion,
+- ROI-limited object classification,
+- 5×5 mask cleanup,
+- object pixel accumulation,
+- bounding-box measurement,
+- centroid calculation,
+- dynamic acceptance testing,
+- velocity estimation and smoothing,
+- next-position prediction,
+- adaptive ROI resizing and repositioning,
+- direction-aware loss recovery,
+- coherent result publication,
+- and hardware debug-video generation.
+
+> **Core architectural principle:** the software delivers frames and seeds/configures the tracker; the FPGA owns the tracking state and updates it autonomously for every frame.
+
+A second operating mode demonstrates how this same hardware tracker can be combined with a higher-level palm detector on the PS. In that mode, the neural network is used only for acquisition and periodic validation. The continuous frame-by-frame tracking loop still remains in the PL.
 
 ---
 
@@ -41,52 +59,91 @@ The FPGA generates a dedicated debug video output:
 
 ## Key Features
 
-- **FPGA-based continuous object tracking** after one initial configuration from the PS.
+### Hardware tracking core
+
+- **Complete continuous tracking loop implemented in FPGA logic.**
+- Once initialized, **no software calculation is required to move or resize the tracking ROI from frame to frame**.
 - **640 × 480** video processing in the current build.
-- Streaming **RGB → YCrCb** conversion in VHDL.
+- Streaming fixed-point **RGB → YCrCb** conversion in VHDL.
 - ROI-limited **Cr/Cb object segmentation**.
-- Hardware **5 × 5 majority filter** for binary-mask cleanup.
+- Hardware **5 × 5 majority filter** with line buffers for binary-mask cleanup.
 - Per-frame hardware extraction of:
   - object centroid,
   - bounding-box width and height,
-  - detected-pixel count.
-- Hardware **velocity estimation and smoothing**.
-- **Next-frame center prediction** and speed-dependent ROI sizing.
-- Direction-aware **ROI expansion during tracking loss**.
-- Coherent PS-readable tracking snapshots through **AXI-Lite**.
+  - matching-pixel count.
+- Hardware **dynamic acceptance threshold** based on the previously measured object size.
+- Hardware **velocity estimation, clamping and smoothing**.
+- Hardware **next-frame center prediction**.
+- Hardware **speed-dependent ROI sizing and repositioning**.
+- Hardware **direction-aware ROI expansion during tracking loss**.
 - Hardware-generated HDMI debug visualization.
-- Two PS operating modes:
-  - **General Object Tracking** — manual one-time object selection.
-  - **Validated Hand Tracking** — automatic palm acquisition and asynchronous validation.
-- PC-side **hardware-matched simulation** for tuning the current PL algorithm before rebuilding the FPGA design.
-- Central VHDL package for frame dimensions and derived interface widths.
+- Coherent hardware status snapshots exposed to the PS through **AXI-Lite**.
+
+### System-level features
+
+- The PS supplies only the **initial ROI and learned Cr/Cb thresholds** in general-object mode.
+- Two software front ends use the same hardware tracker:
+  - **General Object Tracking** — one-time manual object selection.
+  - **Validated Hand Tracking** — automatic palm acquisition plus asynchronous validation.
+- PC-side **hardware-matched simulation** for tuning the PL algorithm before rebuilding the FPGA design.
+- Central compile-time configuration through `vision_tracker_pkg.vhd`.
+- Resolution-dependent signal widths are derived automatically from the frame configuration.
+- Tracking-behavior parameters are exposed as VHDL generics so the hardware can be tuned and rebuilt for different applications.
 
 ---
 
 ## System Architecture
 
-The PYNQ-Z2 combines two computing domains:
+The PYNQ-Z2 contains two computing domains:
 
-- **PS — Processing System:** dual-core ARM processor running Python, OpenCV, Jupyter and the PYNQ runtime.
-- **PL — Programmable Logic:** FPGA fabric running the real-time tracking pipeline written in VHDL.
+- **PS — Processing System:** ARM processor running Python, OpenCV, Jupyter and the PYNQ runtime.
+- **PL — Programmable Logic:** FPGA fabric containing the complete continuous object-tracking datapath and state machine.
+
+The distinction is important: **the PS is not the tracker**. It captures/forwards frames and performs setup. The moment a video frame reaches the FPGA tracking stream, the complete tracking process is performed by dedicated hardware.
 
 ```mermaid
 flowchart LR
-    CAM[USB Webcam] --> PS[ARM Processing System\nPython / OpenCV]
-    PS -->|Video frames through PYNQ video / VDMA path| AXIS[AXI4-Stream Video]
-    AXIS --> PL[Custom FPGA Vision Tracker]
-    PL --> DBG[FPGA Debug Video]
-    DBG --> HDMI[HDMI Output]
+    CAM[USB Webcam] --> PS[ARM PS
+Capture / UI / Initialization]
+    PS -->|frame delivery| VID[Video / VDMA / AXI4-Stream path]
+    VID --> UNPACK[Pixel Unpack]
+    UNPACK --> CLKIN[AXI4-Stream Clock Converter]
+    CLKIN --> TRACKER[Custom vision_tracker_ip
+FULL HARDWARE TRACKING]
+    TRACKER --> CLKOUT[AXI4-Stream Clock Converter]
+    CLKOUT --> CC[Color Convert]
+    CC --> HDMI[HDMI Frontend / TMDS]
+    HDMI --> MON[Monitor]
 
-    PS -->|Initial ROI + Cr/Cb thresholds\nAXI-Lite writes| PL
-    PL -->|Object measurements + ROI + prediction\nAXI-Lite reads| PS
+    PS -->|AXI-Lite:
+initial ROI + Cr/Cb + enable| TRACKER
+    TRACKER -->|AXI-Lite status:
+center + size + ROI + prediction + lost| PS
 ```
 
-The PS is therefore **not removed from the video path**: it captures the USB-camera frames and submits them to the PYNQ video pipeline. However, once tracking starts, the **tracking decisions themselves — segmentation, measurement, motion estimation, prediction, ROI movement and loss expansion — are performed by the PL**.
+### What happens after a frame enters the tracker?
 
-> **TODO — Add polished system-architecture diagram here**  
-> Suggested file: `docs/system_architecture.png`  
-> The Mermaid diagram above can remain as the editable technical version, or be replaced by the final graphic.
+For every frame, the FPGA itself:
+
+1. converts incoming RGB pixels to YCrCb,
+2. checks pixels against the **current hardware-maintained ROI**,
+3. classifies matching pixels using the configured Cr/Cb thresholds,
+4. cleans the mask using the 5×5 majority filter,
+5. measures the object bounding box and matching-pixel count,
+6. calculates the measured center,
+7. decides whether the frame is an **ACCEPT** or **LOSS** case,
+8. calculates and smooths velocity,
+9. predicts the next center,
+10. calculates the next ROI size and position,
+11. expands the ROI in hardware when the object is temporarily lost,
+12. publishes a coherent result snapshot,
+13. and generates the hardware debug-video overlay.
+
+**The PS does not perform these steps on each frame.**
+
+In General Object Tracking, the software performs only the initial user selection and threshold learning, writes the initial configuration to the FPGA, and then continues delivering frames. The PL owns the evolving tracking state from that point onward.
+
+In Validated Hand Tracking, the PS may periodically validate or reacquire a hand, but this is a supervisory layer. Between validation events, the exact same autonomous PL tracker continues operating frame by frame.
 
 ---
 
@@ -94,28 +151,68 @@ The PS is therefore **not removed from the video path**: it captures the USB-cam
 
 | Function | PS / ARM | PL / FPGA |
 |---|:---:|:---:|
-| USB camera capture | ✓ | |
+| USB camera capture / frame delivery | ✓ | |
+| User interface | ✓ | |
 | Initial object selection | ✓ | |
 | Initial Cr/Cb threshold learning | ✓ | |
-| Palm detection in validated-hand mode | ✓ | |
-| Periodic high-level validation | ✓ | |
-| RGB → YCrCb conversion | | ✓ |
-| ROI filtering | | ✓ |
-| Per-pixel object classification | | ✓ |
-| Mask cleanup | | ✓ |
-| Object measurement | | ✓ |
-| Velocity estimation | | ✓ |
-| Motion prediction | | ✓ |
-| Adaptive ROI update | | ✓ |
-| Lost-object ROI expansion | | ✓ |
-| Debug-video generation | | ✓ |
-| PS/PL configuration and status | AXI-Lite | AXI-Lite |
+| Palm acquisition in validated-hand mode | ✓ | |
+| Optional periodic high-level validation | ✓ | |
+| RGB → YCrCb conversion | | **✓** |
+| Current ROI test for every pixel | | **✓** |
+| Cr/Cb object classification | | **✓** |
+| 5×5 mask cleanup | | **✓** |
+| Bounding-box measurement | | **✓** |
+| Pixel counting | | **✓** |
+| Centroid / object-center calculation | | **✓** |
+| Dynamic acceptance threshold | | **✓** |
+| Velocity calculation | | **✓** |
+| Velocity smoothing | | **✓** |
+| Motion prediction | | **✓** |
+| Adaptive ROI position update | | **✓** |
+| Adaptive ROI size update | | **✓** |
+| Lost-object detection | | **✓** |
+| Direction-aware loss expansion | | **✓** |
+| Hardware tracking state | | **✓** |
+| Debug-video generation | | **✓** |
+| Initial configuration / status access | AXI-Lite | AXI-Lite |
 
-This partitioning keeps software flexible while placing the repetitive, deterministic tracking operations in dedicated hardware.
+> **In other words:** software can seed, observe or validate the tracker, but it does not continuously track the object. The frame-by-frame tracker is hardware.
 
 ---
 
 # FPGA / PL Design
+
+## Fully Autonomous Frame-by-Frame Hardware Tracking
+
+The most important engineering feature of this project is that the FPGA does more than accelerate one image-processing function. It contains the **complete tracking feedback loop**.
+
+A software-assisted tracker could use the FPGA only for thresholding or filtering and then send the result back to Python for object-center calculation and ROI movement. This design deliberately does **not** do that.
+
+Instead, the feedback path closes inside the PL:
+
+```text
+incoming frame
+    ↓
+hardware segmentation
+    ↓
+hardware mask cleaning
+    ↓
+hardware object measurement
+    ↓
+hardware center calculation
+    ↓
+hardware velocity / prediction
+    ↓
+hardware ROI update
+    ↓
+next frame uses the new hardware ROI
+```
+
+Therefore, once the initial configuration has been written, the ROI used on frame **N+1** is generated from the measurements of frame **N** without requiring a Python/OpenCV tracking calculation in between.
+
+The PS may read the published hardware state for display, diagnostics or validation, but those reads are **observational**. They are not required to calculate the normal next tracking state.
+
+---
 
 ## FPGA Processing Pipeline
 
@@ -311,40 +408,107 @@ This allows software to determine whether a fresh result exists without reading 
 
 ### 8. `vision_tracker_pkg.vhd`
 
-Contains the global frame configuration and derives the internal widths required by the tracker.
+`vision_tracker_pkg.vhd` is the central compile-time configuration package for resolution-dependent tracker parameters.
 
-Current resolution:
+Current configuration:
 
 ```vhdl
 constant FRAME_WIDTH  : positive := 640;
 constant FRAME_HEIGHT : positive := 480;
+constant VEL_MAX      : positive := 120;
 ```
 
-Coordinate widths, pixel-count width, centroid accumulator widths and signed prediction widths are calculated automatically from these constants.
+Changing the frame dimensions in this package causes the required internal widths to be derived automatically at elaboration time, including:
 
-This allows the design to be rebuilt for a different frame size without manually recalculating every interface width.
+- X/Y coordinate widths,
+- ROI width/height widths,
+- full-frame pixel-count width,
+- X/Y centroid accumulator widths,
+- signed predicted-center widths.
+
+For example, the predicted-center width is automatically large enough to represent positions temporarily outside the visible frame by up to `VEL_MAX`.
+
+This makes the hardware architecture reusable: the designer changes the central frame configuration and rebuilds the FPGA instead of manually updating width declarations throughout every VHDL module.
+
+### Hardware tuning parameters
+
+Algorithmic tuning values are also centralized at the integration boundary through the generic map of `roi_tracker_update`.
+
+The current build uses:
+
+```text
+PAD_BASE       = 8
+PAD_MAX        = 40
+MAX_TRACK_ROI  = 200 × 200
+COUNT_FLOOR    = 150
+COUNT_SHIFT    = 3
+LOSS_BASE      = 10
+LOSS_RAMP      = 5
+LOSS_MIN       = 5
+LOSS_MAX       = 40
+MAX_LOSS_ROI   = 240 × 240
+```
+
+These values control the physical behavior of the hardware tracker: how tightly it follows the target, how the acceptance threshold scales, how far it predicts, and how aggressively it expands the search region after a missed frame.
+
+They are **compile-time hardware parameters**. Changing them means rebuilding the PL implementation, while runtime object-specific values such as the initial ROI and Cr/Cb thresholds are written by the PS through AXI-Lite.
+
+This separation gives the design two useful configuration levels:
+
+| Configuration type | Examples | How it is changed |
+|---|---|---|
+| **Compile-time PL architecture / tuning** | frame size, `VEL_MAX`, padding, maximum ROI sizes, loss behavior | VHDL package / generics → rebuild bitstream |
+| **Runtime object configuration** | tracking enable, initial ROI, Cr/Cb thresholds | PS → AXI-Lite registers |
+
 
 ---
 
-## Why Implement the Tracker in Hardware?
+## Why Implement the Complete Tracker in Hardware?
 
-The tracking algorithm is naturally suited to an FPGA because most of the work is deterministic and stream-oriented.
+The tracking algorithm is naturally suited to an FPGA because its main operations are deterministic, repetitive and stream-oriented. More importantly, this project keeps the **feedback loop itself** in hardware.
 
-### Per-pixel operations
+### Pixel processing is performed while the frame streams
 
-Color conversion, ROI checking, threshold comparison and mask filtering are performed as the video stream moves through dedicated logic rather than as software loops over a frame buffer.
+Color conversion, ROI checking, threshold comparison and mask filtering are implemented as dedicated logic operating on the incoming raster. The CPU does not iterate over the frame to perform these operations.
 
-### Continuous streaming
+### Measurement is also hardware
 
-The design is organized as a pipeline. After pipeline fill/alignment, the mask-cleaning path can continue to accept the raster as a stream rather than waiting for an entire frame to be processed in software.
+The PL accumulates matching pixels, bounding-box limits and coordinate sums during the frame. At frame completion, dedicated hardware calculates the object centroid.
 
-### Frame-level work is separated from the pixel path
+### The tracking decision is hardware
 
-Object measurement and ROI-state updates occur at frame boundaries. The centroid divider operates from a stable completed-frame snapshot while accumulation for the following frame can already continue.
+The measured center is not sent to Python so that software can decide where to look next. `roi_tracker_update` receives the completed hardware measurement and directly performs:
 
-### Reduced PS responsibility
+- ACCEPT / LOSS decision,
+- raw velocity calculation,
+- velocity limiting,
+- velocity smoothing,
+- next-center prediction,
+- dynamic ROI padding,
+- ROI boundary limiting,
+- next ROI publication,
+- and loss-search expansion.
 
-In general-object mode, the PS performs object selection and learns the initial chrominance thresholds. After that, the PL is responsible for the tracking state itself. The PS continues to provide video frames and may read status, but it does not calculate the moving ROI frame by frame.
+### The feedback loop closes in the FPGA
+
+The new ROI produced by the tracker becomes the ROI used by the segmentation hardware for the following frame. This is the key architectural point:
+
+> **Frame N is measured in hardware → the next tracking state is calculated in hardware → frame N+1 is searched using the new hardware-generated ROI.**
+
+No normal frame-by-frame Python tracking calculation is inserted into this loop.
+
+### The PS remains useful without becoming the tracker
+
+The PS provides flexibility where software is advantageous:
+
+- USB camera interfacing and frame delivery,
+- user interaction,
+- one-time object selection,
+- initial Cr/Cb learning,
+- AXI-Lite configuration and diagnostics,
+- and optional high-level hand validation.
+
+This creates a hybrid system in which software supervises the application while dedicated FPGA logic performs the time-critical continuous tracking.
 
 ---
 
@@ -419,12 +583,12 @@ The number of retries is bounded so software cannot be permanently blocked by a 
 
 ## Vivado Integration
 
-The tracking logic is packaged as a custom IP containing:
+The VHDL tracking logic is packaged as a custom Vivado IP containing:
 
-- AXI4-Stream video input,
-- processed/debug video output,
-- AXI-Lite register interface,
-- the complete VHDL tracking pipeline.
+- AXI4-Stream video input (`S_AXIS_VIDEO`),
+- processed/debug AXI4-Stream video output (`VIDEO_OUT`),
+- AXI-Lite control/status interface (`S_AXI_TRACK`),
+- and the complete internal VHDL tracking pipeline.
 
 The repository includes the generated PYNQ overlay files:
 
@@ -433,9 +597,108 @@ PL/design_1.bit
 PL/design_1.hwh
 ```
 
-> **TODO — Add Vivado Block Design screenshot here**  
-> Suggested file: `docs/vivado_block_design.png`  
-> Make sure the screenshot clearly shows the Zynq PS, video/VDMA path, custom tracking IP, AXI-Lite connection and HDMI output path.
+### Custom tracker integration into the HDMI output pipeline
+
+<p align="center">
+  <img src="docs/hdmi_tracker_integration.png" width="100%">
+</p>
+
+The figure above shows the **actual Vivado integration** of `vision_tracker_ip_0` inside the HDMI output subsystem.
+
+The main streaming path is:
+
+```text
+in_stream
+   ↓
+pixel_unpack
+   ↓
+axis_register_slice_0
+   ↓
+axis_clk_to_tracker
+   ↓
+vision_tracker_ip_0
+   ↓
+axis_clk_from_tracker
+   ↓
+color_convert
+   ↓
+HDMI frontend
+   ↓
+TMDS_out
+```
+
+The custom tracker is therefore not a detached software accelerator. It is physically inserted **in-line in the FPGA video stream**.
+
+#### 1. Pixel unpacking
+
+`pixel_unpack` converts the incoming packed video stream to the 24-bit pixel stream used by the processing path.
+
+#### 2. Stream buffering
+
+`axis_register_slice_0` provides an AXI4-Stream register stage before the custom tracker path.
+
+#### 3. Clock-domain transfer into the tracker
+
+`axis_clk_to_tracker` safely transfers the AXI4-Stream video into the clock domain used by `vision_tracker_ip_0`.
+
+#### 4. Full tracking inside `vision_tracker_ip_0`
+
+From this point, the custom IP owns the continuous tracking computation. For every frame it performs:
+
+```text
+RGB → YCrCb
+      ↓
+ROI + Cr/Cb classification
+      ↓
+5×5 majority mask cleaning
+      ↓
+object measurement
+      ↓
+centroid calculation
+      ↓
+ACCEPT / LOSS decision
+      ↓
+velocity estimation + smoothing
+      ↓
+next-center prediction
+      ↓
+adaptive ROI generation
+      ↓
+loss recovery when required
+      ↓
+debug-video rendering
+```
+
+The software does **not** receive each frame, calculate the object center, and send a new ROI back to the FPGA. The ROI controller itself is VHDL logic inside the tracker.
+
+#### 5. Clock-domain transfer back to the HDMI path
+
+The processed output stream leaves the custom IP through `VIDEO_OUT` and passes through `axis_clk_from_tracker`.
+
+#### 6. HDMI output formatting
+
+The stream is passed through `color_convert` and then into the HDMI frontend, which ultimately drives the PYNQ-Z2 physical TMDS output and the connected monitor.
+
+### AXI-Lite control path
+
+The tracker also exposes `S_AXI_TRACK`, independent of the pixel stream.
+
+The PS uses this interface to provide initial configuration and to read status. The tracker is memory-mapped at:
+
+```text
+0x43C30000
+```
+
+This control path carries configuration/status only. **The continuous tracking datapath does not run through the ARM processor.**
+
+### Clock domains
+
+The block design contains multiple PS-generated clocks, including 100 MHz and 142 MHz domains. AXI4-Stream clock converters are placed before and after the tracker so the custom tracking engine can be integrated cleanly into the existing HDMI subsystem while respecting clock-domain boundaries.
+
+> **Hardware integration result:** camera frames may be delivered by software into the PYNQ video infrastructure, but once the pixel stream enters the custom tracker, segmentation, measurement, center calculation, prediction, ROI control, loss recovery and debug rendering are all performed autonomously in PL.
+
+> **TODO — Add full top-level Vivado Block Design screenshot here**  
+> Suggested file: `docs/vivado_block_design.png`
 
 ---
 
@@ -463,9 +726,13 @@ This is the cleanest demonstration of the hardware tracker.
 2. The user captures one frame.
 3. The user draws an initial ROI around the target object.
 4. The PS learns Cr/Cb limits from the central region of that selected object.
-5. The PS writes the initial ROI and thresholds to the FPGA once.
+5. The PS writes the initial ROI and thresholds to the FPGA.
 6. Tracking is enabled.
-7. The PL continuously performs object segmentation, measurement, velocity estimation, prediction, ROI movement and loss recovery.
+7. From this point, the PS continues to deliver video frames, but **the continuous tracking state is owned by the PL**.
+8. For every new frame, the PL independently performs segmentation, filtering, object measurement, centroid calculation, velocity estimation, prediction, ROI movement/resizing and loss recovery.
+9. The ROI calculated by the PL is automatically used for the following frame without a software tracking decision in between.
+
+> **General-object mode is the clearest demonstration of the hardware architecture:** after initialization, software does not continuously calculate where the object is or where the next ROI should be.
 
 The current initialization algorithm uses:
 
@@ -874,7 +1141,55 @@ This simulation was used as a development tool for changing tracking parameters 
 | Debug ROI border | 2 px |
 | Center-marker radius | 4 px |
 
+## Changing the Hardware Configuration
+
+The tracker was designed so that important hardware parameters can be changed without rewriting the complete design.
+
+### Resolution and width-dependent parameters
+
+Edit:
+
+```text
+PL/src/vision_tracker_pkg.vhd
+```
+
+For example:
+
+```vhdl
+constant FRAME_WIDTH  : positive := 640;
+constant FRAME_HEIGHT : positive := 480;
+constant VEL_MAX      : positive := 120;
+```
+
+The package automatically derives the dependent coordinate, size, pixel-count, accumulator and prediction widths.
+
+### Tracking-behavior parameters
+
+The `roi_tracker_update` generic map in `vision_tracker_logic_top.vhd` controls values such as:
+
+- normal ROI padding,
+- maximum normal ROI size,
+- minimum accepted-pixel floor,
+- area scaling of the acceptance threshold,
+- loss expansion base/ramp,
+- maximum loss expansion,
+- maximum loss ROI dimensions.
+
+This makes it possible to tune the behavior for a different application and then synthesize a new hardware implementation.
+
+### Runtime parameters
+
+Object-specific values do not require a new bitstream. The PS can write:
+
+- tracking enable,
+- initial ROI X/Y/W/H,
+- Cr minimum/maximum,
+- Cb minimum/maximum.
+
+After these values seed the tracker, the evolving center, prediction and ROI are once again generated by the PL.
+
 ---
+
 
 # FPGA Implementation Results
 
@@ -946,7 +1261,8 @@ pynq_z2_object_tracking_system/
 │   ├── general_object_initial_roi_green_object.jpg
 │   ├── general_object_initial_roi_mug.jpg
 │   ├── general_object_pl_tracking_data.jpg
-│   └── validated_hand_tracking_status.jpg
+│   ├── validated_hand_tracking_status.jpg
+│   └── hdmi_tracker_integration.png
 │
 ├── full_system_simulation.py
 └── README.md
@@ -1019,13 +1335,26 @@ The VHDL register interface defines the hardware contract. The offsets and thres
 
 A snapshot counter accompanies the PS-facing result registers. Software checks that the counter remains unchanged across a complete read so object center, size, ROI, prediction and loss state belong to the same published hardware result.
 
-## Tracking ROI Is Maintained in the PL
+## Tracking State Is Maintained in the PL
 
-The PS does not calculate a new ROI every frame in general-object mode. This is a core architectural decision of the project: the ROI controller itself is implemented in VHDL.
+The PS does not calculate a new ROI every frame in general-object mode. The hardware tracker maintains the current ROI, measured center, previous accepted center, smoothed velocity, predicted center, loss state and loss-search growth.
+
+This is a core architectural decision of the project: **the complete feedback state required for the next frame is stored and updated in VHDL.**
 
 ## Resolution-Dependent Widths Are Derived Automatically
 
 Changing `FRAME_WIDTH` and `FRAME_HEIGHT` in `vision_tracker_pkg.vhd` recalculates coordinate, pixel-count, accumulator and prediction widths at elaboration time.
+
+`VEL_MAX` is also placed in the shared package because it affects the legal signed prediction range and therefore the required predicted-center signal widths.
+
+## Compile-Time Tuning vs Runtime Configuration
+
+Frame geometry and tracking behavior are deliberately separated from object-specific runtime configuration:
+
+- `vision_tracker_pkg.vhd` and VHDL generics define the hardware implementation.
+- AXI-Lite registers provide the initial ROI, thresholds and enable state at runtime.
+
+The PL then autonomously evolves the tracking state using the synthesized hardware policy.
 
 ---
 
@@ -1071,7 +1400,8 @@ docs/
 ├── general_object_initial_roi_green_object.jpg
 ├── general_object_initial_roi_mug.jpg
 ├── general_object_pl_tracking_data.jpg
-└── validated_hand_tracking_status.jpg
+├── validated_hand_tracking_status.jpg
+└── hdmi_tracker_integration.png
 ```
 
 ## Media Still to Add
@@ -1080,7 +1410,7 @@ Before the final public release, the following engineering visuals should still 
 
 1. **Physical hardware setup photo** — PYNQ-Z2, USB camera, Ethernet, HDMI cable and display.
 2. **FPGA debug-output screenshot** — white mask, green ROI, red measured center and blue predicted center.
-3. **Vivado Block Design screenshot** — clearly showing the Zynq PS, video path, custom tracking IP, AXI-Lite connection and HDMI output path.
+3. **Full Vivado Block Design screenshot** — top-level Zynq PS, VDMA/video hierarchy, AXI control and HDMI subsystem.
 4. **Polished architecture diagram** — PS/PL partitioning and video/control data paths.
 5. **Polished FPGA pipeline diagram** — the VHDL processing stages.
 6. **Hardware-matched PC simulation screenshot**.
@@ -1103,6 +1433,27 @@ docs/
 
 ## Summary
 
-The project demonstrates a complete hardware/software vision-tracking architecture rather than only a software computer-vision application. The ARM processor is used for flexible initialization and optional high-level validation, while the FPGA implements the continuous tracking loop: pixel classification, filtering, measurement, motion estimation, prediction, adaptive ROI control, loss recovery and debug-video generation.
+This project demonstrates an **FPGA-resident tracking system**, not merely a software computer-vision application with a small hardware accelerator.
 
-The result is a modular platform for experimenting with real-time object tracking on the PYNQ-Z2 and for studying the engineering trade-offs between software flexibility and dedicated FPGA processing.
+The PS is responsible for the tasks that benefit from software flexibility: camera interfacing, user interaction, one-time object initialization, configuration, diagnostics and optional high-level hand validation.
+
+The continuous tracker itself is implemented in the PL. From the moment a frame reaches `vision_tracker_ip`, the FPGA performs the entire tracking chain:
+
+```text
+pixel classification
+→ mask filtering
+→ object measurement
+→ centroid calculation
+→ acceptance decision
+→ velocity estimation
+→ prediction
+→ adaptive ROI update
+→ loss recovery
+→ next-frame tracking state
+```
+
+The new ROI is generated inside the FPGA and feeds directly into the following frame's hardware segmentation. This closes the tracking feedback loop entirely in programmable logic.
+
+The design is also intentionally configurable. `vision_tracker_pkg.vhd` centralizes global frame/width parameters and automatically derives dependent signal sizes, while `roi_tracker_update` generics expose application-level behavior such as ROI padding, acceptance thresholds and loss-search limits. Runtime object-specific configuration is supplied independently through AXI-Lite.
+
+The result is a modular, hardware-centric real-time vision platform that demonstrates how a PYNQ-Z2 can combine software flexibility at the system boundary with an autonomous, stateful FPGA tracking engine in the video datapath.

@@ -245,7 +245,8 @@ At the end of each measured frame, the tracker first determines whether the new 
 
 The decision is based on the number of matching object pixels reported by `object_measurement.vhd`.
 
-The tracker maintains a dynamic minimum pixel requirement:
+````markdown
+The tracker uses a dynamic minimum pixel requirement:
 
 ```text
 min_accepted_pixels = max(
@@ -254,9 +255,14 @@ min_accepted_pixels = max(
 )
 ```
 
-This threshold is updated after every accepted measurement.
+The threshold is recalculated after every accepted measurement, allowing it to scale with the tracked object's size.
 
-`COUNT_FLOOR` provides a minimum noise-rejection level, while `COUNT_SHIFT` controls how strongly the required pixel count scales with the size of the tracked object.
+`COUNT_FLOOR` defines the minimum number of matching pixels required for acceptance.
+
+`COUNT_SHIFT` defines the required ratio between the number of matching pixels and the object's bounding-box area.
+
+This allows the required pixel count to increase with object size while maintaining a minimum threshold for smaller objects.
+````
 
 For each completed frame:
 
@@ -267,8 +273,6 @@ if matching_pixel_count >= min_accepted_pixels
 else
     → LOSS
 ```
-
-This allows the tracker to adapt its acceptance requirement to the current object size instead of relying on a fixed pixel-count threshold.
 
 #### ACCEPT
 

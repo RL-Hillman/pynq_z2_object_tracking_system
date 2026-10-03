@@ -22,7 +22,6 @@ The project includes **two software operating modes**, both using the same hardw
 
 - **Complete continuous tracking loop implemented in FPGA logic.**
 - Once initialized, **no software calculation is required to move or resize the tracking ROI from frame to frame**.
-- **640 × 480** video processing in the current build.
 - Streaming fixed-point **RGB → YCrCb** conversion in VHDL.
 - ROI-limited **Cr/Cb object segmentation**.
 - Hardware **5 × 5 majority filter** with line buffers for binary-mask cleanup.

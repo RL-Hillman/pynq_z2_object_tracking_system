@@ -24,13 +24,6 @@ The custom IP provides:
 - AXI-Lite control/status interface (`S_AXI_TRACK`),
 - and the complete internal VHDL tracking pipeline.
 
-The repository includes the generated PYNQ overlay files:
-
-```text
-PL/design_1.bit
-PL/design_1.hwh
-```
-
 ### Custom Tracker Integration into the Video Pipeline
 
 <p align="center">

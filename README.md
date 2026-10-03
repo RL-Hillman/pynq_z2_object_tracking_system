@@ -26,7 +26,7 @@ A second operating mode demonstrates how this same hardware tracker can be combi
 
 ---
 
-## Key Features## Key Features
+## Key Features
 
 ### Hardware tracking core
 
@@ -72,22 +72,18 @@ The distinction is important: **the PS is not the tracker**. It captures/forward
 
 ```mermaid
 flowchart LR
-    CAM[USB Webcam] --> PS[ARM PS
-Capture / UI / Initialization]
+    CAM[USB Webcam] --> PS[ARM PS<br/>Capture / UI / Initialization]
     PS -->|frame delivery| VID[Video / VDMA / AXI4-Stream path]
     VID --> UNPACK[Pixel Unpack]
     UNPACK --> CLKIN[AXI4-Stream Clock Converter]
-    CLKIN --> TRACKER[Custom vision_tracker_ip
-FULL HARDWARE TRACKING]
+    CLKIN --> TRACKER[Custom vision_tracker_ip<br/>FULL HARDWARE TRACKING]
     TRACKER --> CLKOUT[AXI4-Stream Clock Converter]
     CLKOUT --> CC[Color Convert]
     CC --> HDMI[HDMI Frontend / TMDS]
     HDMI --> MON[Monitor]
 
-    PS -->|AXI-Lite:
-initial ROI + Cr/Cb + enable| TRACKER
-    TRACKER -->|AXI-Lite status:
-center + size + ROI + prediction + lost| PS
+    PS -->|AXI-Lite:<br/>initial ROI + Cr/Cb + enable| TRACKER
+    TRACKER -->|AXI-Lite status:<br/>center + size + ROI + prediction + lost| PS
 ```
 
 ### What happens after a frame enters the tracker?
@@ -337,6 +333,43 @@ Maximum loss ROI:      240 × 240 px
 ```
 
 The ROI therefore grows only as needed and remains bounded.
+
+### Timing-oriented tracker pipelining
+
+The tracker state update was deliberately split across multiple clock cycles rather than placing the complete decision path into one long combinational calculation.
+
+For an accepted measurement, `roi_tracker_update` progresses through four registered stages:
+
+```text
+ACCEPT_VELOCITY
+      ↓
+ACCEPT_PREDICT
+      ↓
+ACCEPT_ROI
+      ↓
+ACCEPT_COMMIT
+```
+
+The stages separate the major calculations:
+
+1. **Velocity stage** — raw X/Y velocity is calculated, limited to `±VEL_MAX`, and smoothed.
+2. **Prediction stage** — the next object center and speed-dependent padding are calculated.
+3. **ROI stage** — the next ROI width and height are formed and constrained.
+4. **Commit stage** — the new ROI position and completed tracking state are published atomically.
+
+Loss handling is also pipelined:
+
+```text
+TRACKER_IDLE
+      ↓
+LOSS_EXPAND
+      ↓
+LOSS_COMMIT
+```
+
+This separates the requested loss expansion from the final bounded ROI update and avoids building a single long combinational loss-recovery path.
+
+The same timing-oriented design philosophy is used in `object_measurement`: frame accumulation is independent from centroid division, and X/Y centroids are calculated by two small sequential dividers in parallel. While the completed frame is being divided, accumulation for the following frame can already continue.
 
 ### Dynamic acceptance threshold
 
@@ -660,9 +693,27 @@ The PS uses this interface to provide initial configuration and to read status. 
 
 This control path carries configuration/status only. **The continuous tracking datapath does not run through the ARM processor.**
 
-### Clock domains
+### Clock domains and tracker operating frequency
 
-The block design contains multiple PS-generated clocks, including 100 MHz and 142 MHz domains. AXI4-Stream clock converters are placed before and after the tracker so the custom tracking engine can be integrated cleanly into the existing HDMI subsystem while respecting clock-domain boundaries.
+The block design contains multiple clock domains. The custom `vision_tracker_ip` was integrated in a dedicated **100 MHz tracking clock domain**, while the surrounding video infrastructure also uses a **142 MHz** domain.
+
+The two AXI4-Stream clock converters surrounding the tracker provide the required clock-domain crossings:
+
+```text
+video / HDMI domain
+        ↓
+axis_clk_to_tracker
+        ↓
+100 MHz tracking domain
+        ↓
+vision_tracker_ip_0
+        ↓
+axis_clk_from_tracker
+        ↓
+video / HDMI domain
+```
+
+Using a dedicated 100 MHz tracker domain, together with registered pipeline stages inside the VHDL design, keeps the continuous hardware tracking path compatible with the implemented timing constraints.
 
 > **Hardware integration result:** camera frames may be delivered by software into the PYNQ video infrastructure, but once the pixel stream enters the custom tracker, segmentation, measurement, center calculation, prediction, ROI control, loss recovery and debug rendering are all performed autonomously in PL.
 
@@ -1175,30 +1226,90 @@ After these values seed the tracker, the evolving center, prediction and ROI are
 
 # FPGA Implementation Results
 
-This section should contain the final post-implementation Vivado results rather than estimated values.
+The final Vivado implementation confirms that the complete system — including the PYNQ video infrastructure and the custom hardware tracker — fits comfortably in the Zynq-7000 device and meets the specified timing constraints.
 
-| Metric | Result |
-|---|---:|
-| FPGA device | Zynq-7000 on PYNQ-Z2 |
-| Video resolution | 640 × 480 |
-| PL clock frequency | **TODO** |
-| Measured / configured video frame rate | **TODO** |
-| LUT utilization | **TODO** |
-| LUTRAM utilization | **TODO** |
-| Flip-Flop utilization | **TODO** |
-| BRAM utilization | **TODO** |
-| DSP utilization | **TODO** |
-| WNS | **TODO** |
-| TNS | **TODO** |
-| Timing met | **TODO** |
+## Operating Frequency
 
-> **TODO — Add Vivado utilization screenshot here**  
-> Suggested file: `docs/vivado_utilization.png`
+The custom `vision_tracker_ip` operates in a dedicated **100 MHz FPGA clock domain**.
 
-> **TODO — Add Vivado timing summary screenshot here**  
-> Suggested file: `docs/vivado_timing_summary.png`
+The surrounding video design also contains a **142 MHz** clock domain, so AXI4-Stream clock converters are used before and after the custom tracker to cross between the video and tracking domains safely.
 
-Do not replace the table with screenshots alone. The screenshots provide evidence, while the table makes the important engineering results immediately readable.
+## Timing Closure
+
+Post-implementation timing analysis confirmed that **all user-specified timing constraints are met**.
+
+```text
+Failing setup endpoints: 0
+Failing hold endpoints:  0
+Total setup negative slack (TNS): 0.000 ns
+Total hold negative slack (THS):   0.000 ns
+Timing constraints: MET
+```
+
+Meeting timing was an explicit architectural consideration during the VHDL design.
+
+In particular, computationally heavier frame-level operations were divided into registered pipeline stages rather than being placed into a single long combinational path.
+
+### Example — pipelined ROI update
+
+The ACCEPT path in `roi_tracker_update` is split into:
+
+```text
+Velocity calculation
+        ↓
+Prediction
+        ↓
+ROI sizing
+        ↓
+State / ROI commit
+```
+
+This corresponds to the registered states:
+
+```text
+ACCEPT_VELOCITY
+ACCEPT_PREDICT
+ACCEPT_ROI
+ACCEPT_COMMIT
+```
+
+The LOSS path is similarly divided into expansion and commit stages.
+
+### Example — overlapped object measurement
+
+`object_measurement` separates continuous frame accumulation from centroid division.
+
+After a frame has completed:
+
+- its accumulated measurement is captured,
+- X and Y centroid divisions run in parallel using sequential dividers,
+- while the accumulator can already begin processing the next frame.
+
+This structure reduces the amount of work that must be completed in any single clock cycle while maintaining continuous frame processing.
+
+## Full-System FPGA Resource Utilization
+
+The resource figures below represent the **complete implemented PYNQ-Z2 design**, not only `vision_tracker_ip`.
+
+They include the video/HDMI infrastructure, AXI interconnects, clocking logic, VDMA-related logic, control infrastructure and the custom hardware tracker.
+
+<p align="center">
+  <img src="docs/full_system_fpga_utilization.png" width="70%">
+</p>
+
+| Resource | Used | Available | Utilization |
+|---|---:|---:|---:|
+| LUT | 12,164 | 53,200 | **22.86%** |
+| LUTRAM | 374 | 17,400 | **2.15%** |
+| FF | 20,707 | 106,400 | **19.46%** |
+| BRAM | 10 | 140 | **7.14%** |
+| DSP | 19 | 220 | **8.64%** |
+| IO | 20 | 125 | **16.00%** |
+| MMCM | 2 | 4 | **50.00%** |
+
+Despite including the complete video and control infrastructure, the implemented design uses less than one quarter of the available LUT and FF resources and less than 10% of the available BRAM and DSP resources.
+
+This leaves substantial programmable-logic capacity for future extensions such as additional image features, multiple-object support or further hardware acceleration.
 
 ---
 
@@ -1244,7 +1355,8 @@ pynq_z2_object_tracking_system/
 │   ├── general_object_initial_roi_mug.jpg
 │   ├── general_object_pl_tracking_data.jpg
 │   ├── validated_hand_tracking_status.jpg
-│   └── hdmi_tracker_integration.png
+│   ├── hdmi_tracker_integration.png
+│   └── full_system_fpga_utilization.png
 │
 ├── full_system_simulation.py
 └── README.md
@@ -1383,7 +1495,8 @@ docs/
 ├── general_object_initial_roi_mug.jpg
 ├── general_object_pl_tracking_data.jpg
 ├── validated_hand_tracking_status.jpg
-└── hdmi_tracker_integration.png
+├── hdmi_tracker_integration.png
+└── full_system_fpga_utilization.png
 ```
 
 ## Media Still to Add
@@ -1396,8 +1509,6 @@ Before the final public release, the following engineering visuals should still 
 4. **Polished architecture diagram** — PS/PL partitioning and video/control data paths.
 5. **Polished FPGA pipeline diagram** — the VHDL processing stages.
 6. **Hardware-matched PC simulation screenshot**.
-7. **Vivado utilization report**.
-8. **Vivado timing summary**.
 
 Recommended filenames:
 
@@ -1408,9 +1519,7 @@ docs/
 ├── vivado_block_design.png
 ├── system_architecture.png
 ├── fpga_pipeline.png
-├── hardware_matched_simulation.png
-├── vivado_utilization.png
-└── vivado_timing_summary.png
+└── hardware_matched_simulation.png
 ```
 
 ## Summary

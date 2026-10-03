@@ -485,7 +485,6 @@ During operation, the notebook can display the current hardware state read from 
 <p align="center"><i>Two examples of the general-purpose FPGA tracker following different user-selected objects.</i></p>
 
 ---
-````
 
 ## 2. Validated Hand Tracking
 

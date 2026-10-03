@@ -273,8 +273,8 @@ else
     → LOSS
 ```
 
-#### ACCEPT
----
+#### <u><strong>ACCEPT</strong></u>
+
 When the measurement contains enough matching pixels, it is accepted as the new object position.
 
 The tracker then:
@@ -324,8 +324,8 @@ padding = clamp(
 
 This keeps the ROI relatively tight when the object is moving slowly while providing additional search space when faster motion is detected.
 
-#### LOSS
----
+#### <u><strong>LOSS</strong></u>
+
 When the number of matching pixels falls below `min_accepted_pixels`, the measurement is not trusted and `tracking_lost` is asserted.
 
 Because there is no reliable new object position, the tracker does not perform another full prediction from an untrusted measurement.

@@ -98,16 +98,18 @@ Runtime configuration includes the initial ROI, Cr/Cb thresholds, and tracking e
 
 | Offset | Direction | Register | Description |
 |---:|:---:|---|---|
+| **PS → PL Configuration** | | | |
 | `0x00` | PS → PL | `TRACKING_CONTROL` | Bit 0 enables tracking |
-| `0x04` | PL → PS | `TRACKING_STATUS` | Bit 0 = tracking lost |
-| `0x08` | PL → PS | `SNAPSHOT_COUNTER` | Increments on each coherent published result |
-| `0x0C` | PL → PS | `FRAME_WIDTH` | Hardware frame width |
-| `0x10` | PL → PS | `FRAME_HEIGHT` | Hardware frame height |
 | `0x14` | PS → PL | `INITIAL_ROI_X` | Initial ROI X |
 | `0x18` | PS → PL | `INITIAL_ROI_Y` | Initial ROI Y |
 | `0x1C` | PS → PL | `INITIAL_ROI_WIDTH` | Initial ROI width |
 | `0x20` | PS → PL | `INITIAL_ROI_HEIGHT` | Initial ROI height |
 | `0x24` | PS → PL | `OBJECT_THRESHOLDS` | Packed Cr/Cb bounds |
+| **PL → PS Status** | | | |
+| `0x04` | PL → PS | `TRACKING_STATUS` | Bit 0 = tracking lost |
+| `0x08` | PL → PS | `SNAPSHOT_COUNTER` | Increments on each coherent published result |
+| `0x0C` | PL → PS | `FRAME_WIDTH` | Hardware frame width |
+| `0x10` | PL → PS | `FRAME_HEIGHT` | Hardware frame height |
 | `0x28` | PL → PS | `OBJECT_CENTER_X` | Measured centroid X |
 | `0x2C` | PL → PS | `OBJECT_CENTER_Y` | Measured centroid Y |
 | `0x30` | PL → PS | `OBJECT_WIDTH` | Measured object width |

@@ -536,12 +536,11 @@ Current validation interval:
 - **PYNQ-Z2** development board
 - **USB webcam**
 - **Ethernet cable** between the PYNQ-Z2 and the computer
+- **HDMI cable** for the video output
+- **Monitor/display with HDMI input** for displaying the tracking result
 - USB cable for the board's serial/UART connection
 - Computer running Windows
 - PYNQ-compatible SD card/image
-- Optional but recommended for the hardware debug view:
-  - HDMI cable
-  - HDMI monitor/display
 
 ## Required Software
 

@@ -1101,19 +1101,6 @@ docs/
 └── vivado_timing_summary.png
 ```
 
----
-
-# Academic Project
-
-This repository was developed as an academic final project focused on **FPGA-based real-time computer vision and hardware/software co-design using the PYNQ-Z2 platform**.
-
-**Authors:** TODO  
-**Institution:** TODO  
-**Department:** TODO  
-**Academic year:** 2026
-
----
-
 ## Summary
 
 The project demonstrates a complete hardware/software vision-tracking architecture rather than only a software computer-vision application. The ARM processor is used for flexible initialization and optional high-level validation, while the FPGA implements the continuous tracking loop: pixel classification, filtering, measurement, motion estimation, prediction, adaptive ROI control, loss recovery and debug-video generation.

@@ -623,7 +623,7 @@ pynq_z2_object_tracking_system/
 - **HDMI cable** for the video output
 - **Monitor/display with HDMI input** for displaying the tracking result
 - USB cable for the board's serial/UART connection
----
+
 
 # Connecting to the PYNQ-Z2
 

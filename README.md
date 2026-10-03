@@ -14,8 +14,6 @@ The project includes **two software operating modes**, both using the same hardw
 
 ---
 
----
-
 ## Key Features
 
 ### Hardware tracking core

@@ -36,51 +36,27 @@ The surrounding blocks perform the following functions:
 
 1. **`pixel_unpack`** - converts the incoming packed video stream to the 24-bit pixel format used by the processing path.
 2. **`axis_register_slice_0`** - provides an AXI4-Stream register stage before the tracker.
-3. **`axis_clk_to_tracker`** - transfers the video stream into the tracker clock domain.
+3. **`axis_clk_to_tracker`** - transfers the video stream from the **142 MHz HDMI/video clock domain** into the dedicated **100 MHz tracking domain**.
 4. **`vision_tracker_ip_0`** - executes the VHDL tracking pipeline and updates the tracking data.
-5. **`axis_clk_from_tracker`** - transfers the processed stream back to the HDMI/video clock domain.
+5. **`axis_clk_from_tracker`** - transfers the processed stream from the tracking domain back to the **142 MHz HDMI/video clock domain**..
 6. **`color_convert` and HDMI frontend** - format the resulting video stream and drive the physical TMDS output.
 
 ### AXI Interfaces
 
 The custom `vision_tracker_ip` uses two AXI interfaces with separate roles:
 
-- **AXI4-Stream** — transports the video stream through the hardware tracking pipeline.
-- **AXI-Lite** — provides configuration and status communication between the PS and the tracker.
+- **AXI4-Stream** - transports the video stream through the hardware tracking pipeline.
+- **AXI-Lite** - provides configuration and status communication between the PS and the tracker.
 
 #### AXI4-Stream Video
 
 The video interface transports 24-bit RGB pixels together with the standard AXI4-Stream video control signals:
 
-- `tdata` — RGB pixel data,
-- `tvalid` — valid pixel,
-- `tuser` — start of frame,
-- `tlast` — end of line,
-- `tready` — back-pressure / flow control.
-
-The tracker also produces an AXI4-Stream output carrying the processed/debug video.
-
-##### Clock-Domain Crossing
-
-The custom `vision_tracker_ip` operates in a dedicated **100 MHz tracking clock domain**, while the surrounding video infrastructure also uses a **142 MHz** domain.
-
-Two AXI4-Stream clock converters provide the required clock-domain crossings:
-
-```text
-Video / HDMI domain
-        ↓
-axis_clk_to_tracker
-        ↓
-100 MHz tracking domain
-        ↓
-vision_tracker_ip_0
-        ↓
-axis_clk_from_tracker
-        ↓
-Video / HDMI domain
-```
-
-The dedicated tracking clock domain, together with registered pipeline stages inside the VHDL implementation, was used to meet the implemented timing requirements.
+- `tdata` - RGB pixel data,
+- `tvalid` - indicates that the current pixel data is valid and ready to be transferred.,
+- `tuser` - start of frame,
+- `tlast` - end of line,
+- `tready` - indicates that the receiving block is ready to accept the current pixel, enabling AXI4-Stream flow control.
 
 #### AXI-Lite Control and Status
 
@@ -91,9 +67,6 @@ The tracker is memory-mapped at:
 ```text
 0x43C30000
 ```
-
-Runtime configuration includes the initial ROI, Cr/Cb thresholds, and tracking enable. Tracking information such as the current object position, size, ROI, prediction, and tracking status can be read by the PS.
-
 ##### Register Map
 
 | Offset | Direction | Register | Description |

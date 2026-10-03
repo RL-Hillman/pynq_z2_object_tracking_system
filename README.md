@@ -129,8 +129,6 @@ Video / HDMI domain
 
 The dedicated tracking clock domain, together with registered pipeline stages inside the VHDL implementation, was used to meet the implemented timing requirements.
 
-> **TODO — Add full top-level Vivado Block Design screenshot here**  
-> Suggested file: `docs/vivado_block_design.png`
 # FPGA / PL Design
 
 ## Fully Autonomous Frame-by-Frame Hardware Tracking

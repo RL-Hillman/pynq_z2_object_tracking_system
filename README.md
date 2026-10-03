@@ -217,6 +217,36 @@ A successful validation does **not** continuously update the PL ROI. As long as 
 
 Palm inference runs in a background worker so that validation does not block the camera-to-video-to-PL processing path.
 
+#### Detection and validation parameters
+
+| Parameter | Purpose |
+|---|---|
+| `VALIDATION_INTERVAL_SEC` | Defines how often periodic PS validation is performed while the PL is tracking |
+| `PERIODIC_MISSES_BEFORE_SEARCH` | Defines how many consecutive periodic validation failures are allowed before returning to full-frame hand search |
+| `LOST_MISSES_BEFORE_SEARCH` | Defines how many failed validations are allowed after the PL reports `tracking_lost` |
+| `SEARCH_MIN_SCORE` | Minimum palm-detection confidence required to acquire a new hand |
+| `VALIDATION_MIN_SCORE` | Minimum detection confidence required to confirm that the tracked hand is still valid |
+| `RECOVERY_MIN_SCORE` | Minimum full-frame detection confidence required for immediate recovery when the hand is detected outside the current PL ROI |
+| `OVERLAP_MIN_RATIO` | Minimum required overlap between the detected hand and the PL ROI during validation |
+| `VAL_PAD` | Additional padding applied around the PL ROI when defining the validation region |
+
+#### Hand initialization parameters
+
+| Parameter | Purpose |
+|---|---|
+| `SKIN_MIN_RATIO` | Minimum proportion of skin-colored pixels required when accepting a hand candidate |
+| `PAD_X` | Horizontal padding applied when constructing the initial hand ROI |
+| `PAD_UP_Y` | Padding added above the detected hand |
+| `PAD_DOWN_Y` | Padding added below the detected hand |
+| `MIN_PAD` | Minimum ROI padding applied regardless of detected hand size |
+| `SKIN_PCT_LO` | Lower percentile used when estimating the hand's Cr/Cb range |
+| `SKIN_PCT_HI` | Upper percentile used when estimating the hand's Cr/Cb range |
+| `SKIN_MARGIN` | Expands the learned Cr/Cb limits after percentile filtering |
+| `MIN_SKIN_SAMPLES` | Minimum number of valid skin samples required for color calibration |
+| `SKIN_MAX_BAND` | Limits the maximum accepted Cr/Cb percentile span to reject contaminated color samples |
+
+These parameters allow the PS-side detector to control how strictly a hand is acquired and validated, while the PL remains responsible for continuous frame-by-frame tracking.
+
 ### PS/PL validation status
 
 During operation, the notebook displays the interaction between the software validator and the continuously running PL tracker.

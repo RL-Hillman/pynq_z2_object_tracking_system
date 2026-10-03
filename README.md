@@ -13,49 +13,9 @@ The project includes **two software operating modes**, both using the same hardw
 - **Validated Hand Tracking** - demonstrates how an **AI model can be combined with the hardware tracker**. A palm-detection model running on the PS is used to acquire a hand and periodically validate that the FPGA is still tracking the correct target.
 
 ---
-
-## Key Features
-
-### Hardware tracking core
-
-- **Complete continuous tracking loop implemented in FPGA logic.**
-- Once initialized, **no software calculation is required to move or resize the tracking ROI from frame to frame**.
-- Streaming fixed-point **RGB → YCrCb** conversion in VHDL.
-- ROI-limited **Cr/Cb object segmentation**.
-- Hardware **5 × 5 majority filter** with line buffers for binary-mask cleanup.
-- Per-frame hardware extraction of:
-  - object centroid,
-  - bounding-box width and height,
-  - matching-pixel count.
-- Hardware **dynamic acceptance threshold** based on the previously measured object size.
-- Hardware **velocity estimation, clamping and smoothing**.
-- Hardware **next-frame center prediction**.
-- Hardware **speed-dependent ROI sizing and repositioning**.
-- Hardware **direction-aware ROI expansion during tracking loss**.
-- Hardware-generated HDMI debug visualization.
-- Coherent hardware status snapshots exposed to the PS through **AXI-Lite**.
-
-### System-level features
-
-- The PS supplies only the **initial ROI and learned Cr/Cb thresholds** in general-object mode.
-- Two software front ends use the same hardware tracker:
-  - **General Object Tracking** — one-time manual object selection.
-  - **Validated Hand Tracking** — automatic palm acquisition plus asynchronous validation.
-- PC-side **hardware-matched simulation** for tuning the PL algorithm before rebuilding the FPGA design.
-- Central compile-time configuration through `vision_tracker_pkg.vhd`.
-- Resolution-dependent signal widths are derived automatically from the frame configuration.
-- Tracking-behavior parameters are exposed as VHDL generics so the hardware can be tuned and rebuilt for different applications.
-
----
-
 ## System Architecture
 
-The PYNQ-Z2 contains two computing domains:
-
-- **PS — Processing System:** ARM processor running Python, OpenCV, Jupyter and the PYNQ runtime.
-- **PL — Programmable Logic:** FPGA fabric containing the complete continuous object-tracking datapath and state machine.
-
-The distinction is important: **the PS is not the tracker**. It captures/forwards frames and performs setup. The moment a video frame reaches the FPGA tracking stream, the complete tracking process is performed by dedicated hardware.
+The following diagram shows how the custom `vision_tracker_ip` is integrated into the PYNQ-Z2 video pipeline and how the PS communicates with the hardware tracker.
 
 ```mermaid
 flowchart LR
@@ -73,46 +33,30 @@ flowchart LR
     TRACKER -->|AXI-Lite status:<br/>center + size + ROI + prediction + lost| PS
 ```
 
-### Tracking ownership
-
-In **General Object Tracking**, software performs the initial object selection and threshold learning, writes the starting configuration to the FPGA, and then continues delivering frames. From that point onward, the evolving tracking state is owned by the PL.
-
-In **Validated Hand Tracking**, the PS adds periodic high-level validation or reacquisition, but the same FPGA tracker continues to perform the frame-by-frame tracking between those events.
-
-The detailed hardware processing sequence is described in the FPGA Processing Pipeline section below.
-
----
-
-## Hardware / Software Partitioning
+### PS / PL Partitioning
 
 | Function | PS / ARM | PL / FPGA |
 |---|:---:|:---:|
-| USB camera capture / frame delivery | ✓ | |
-| User interface | ✓ | |
-| Initial object selection | ✓ | |
+| Camera capture and frame delivery | ✓ | |
+| User interface and result display | ✓ | |
+| Initial object acquisition | ✓ | |
 | Initial Cr/Cb threshold learning | ✓ | |
-| Palm acquisition in validated-hand mode | ✓ | |
-| Optional periodic high-level validation | ✓ | |
+| AI palm detection / periodic validation | ✓ | |
 | RGB → YCrCb conversion | | **✓** |
-| Current ROI test for every pixel | | **✓** |
-| Cr/Cb object classification | | **✓** |
-| 5×5 mask cleanup | | **✓** |
-| Bounding-box measurement | | **✓** |
-| Pixel counting | | **✓** |
-| Centroid / object-center calculation | | **✓** |
+| ROI-based object segmentation | | **✓** |
+| 5 × 5 mask filtering | | **✓** |
+| Object measurement and pixel counting | | **✓** |
+| Centroid calculation | | **✓** |
 | Dynamic acceptance threshold | | **✓** |
-| Velocity calculation | | **✓** |
-| Velocity smoothing | | **✓** |
-| Motion prediction | | **✓** |
-| Adaptive ROI position update | | **✓** |
-| Adaptive ROI size update | | **✓** |
-| Lost-object detection | | **✓** |
-| Direction-aware loss expansion | | **✓** |
-| Hardware tracking state | | **✓** |
+| Velocity estimation and smoothing | | **✓** |
+| Next-position prediction | | **✓** |
+| Adaptive ROI position and size update | | **✓** |
+| Lost-object detection and recovery | | **✓** |
+| Continuous tracking state | | **✓** |
 | Debug-video generation | | **✓** |
-| Initial configuration / status access | AXI-Lite | AXI-Lite |
+| Configuration / status communication | **AXI-Lite** | **AXI-Lite** |
 
-> **In other words:** software can seed, observe or validate the tracker, but it does not continuously track the object. The frame-by-frame tracker is hardware.
+
 
 ---
 

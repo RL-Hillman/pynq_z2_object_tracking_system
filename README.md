@@ -50,10 +50,10 @@ The custom `vision_tracker_ip` uses two AXI interfaces with separate roles:
 
 #### AXI4-Stream Video
 
-The video interface transports 24-bit RGB pixels together with the standard AXI4-Stream video control signals:
+The `S_AXIS_VIDEO` interface transports 24-bit RGB pixels together with the standard AXI4-Stream video control signals:
 
 - `tdata` - RGB pixel data,
-- `tvalid` - indicates that the current pixel data is valid and ready to be transferred.,
+- `tvalid` - indicates that the current pixel data is valid and ready to be transferred,
 - `tuser` - start of frame,
 - `tlast` - end of line,
 - `tready` - indicates that the receiving block is ready to accept the current pixel, enabling AXI4-Stream flow control.
@@ -104,13 +104,11 @@ bits 23:16  = Cb min
 bits 31:24  = Cb max
 ```
 
-#### Coherent Snapshot Reads
+#### Snapshot Counter
 
-`fpga.py` reads `SNAPSHOT_COUNTER` before and after reading the complete tracking-status register group.
+The PL increments `SNAPSHOT_COUNTER` whenever a new tracking result is published. This allows the PS to detect when fresh tracking data is available.
 
-If the counter changes during the read, the software retries the operation so that the returned `TrackingData` represents a single coherent hardware snapshot.
-
-The number of retries is bounded so that software cannot remain blocked by a continuously updating producer.
+When the PS reads the complete tracking result, `fpga.py` uses this counter to ensure that **all values being read belong to the same processed frame**. `fpga.py` checks the counter both before and after reading the tracking registers; if it changes during the read, a new result was published before the read was completed, so the registers are read again.
 
 # FPGA / PL Design
 

@@ -245,7 +245,6 @@ At the end of each measured frame, the tracker first determines whether the new 
 
 The decision is based on the number of matching object pixels reported by `object_measurement.vhd`.
 
-````markdown
 The tracker uses a dynamic minimum pixel requirement:
 
 ```text

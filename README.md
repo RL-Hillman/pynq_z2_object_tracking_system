@@ -235,7 +235,6 @@ The implementation separates the work into two clocked processes:
 
 While centroid division is being performed for the completed frame, the accumulator can already begin processing pixels from the next frame.
 
-````markdown
 ### 5. `roi_tracker_update.vhd`
 
 This block contains the main hardware tracking state machine.

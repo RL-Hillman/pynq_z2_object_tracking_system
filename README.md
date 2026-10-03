@@ -128,6 +128,7 @@ Next-position prediction
 Speed-dependent ROI sizing and positioning
    ↓
 ROI for Frame N+1
+```
 
 ### FPGA Processing Pipeline
 

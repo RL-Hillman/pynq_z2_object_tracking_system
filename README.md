@@ -1,7 +1,5 @@
 # PYNQ-Z2 FPGA Based Real-Time Object Tracking System
 
-# FPGA Real-Time Object Tracking System
-
 An **FPGA-based real-time object tracking system** implemented on the **PYNQ-Z2**.
 
 The core of the system is a **custom VHDL tracking engine** running entirely in the FPGA's **Programmable Logic (PL)**. Once initialized, the FPGA performs the complete frame-by-frame tracking process in hardware, including object segmentation, mask filtering, object measurement, centroid calculation, motion estimation, prediction of the object's next position, adaptive ROI control, loss detection and recovery, and debug-video generation.

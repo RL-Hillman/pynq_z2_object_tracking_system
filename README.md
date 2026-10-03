@@ -524,7 +524,7 @@ This centralizes the resolution-dependent configuration and allows the hardware 
 
 # FPGA Implementation Results
 
-The final Vivado implementation confirms that the complete system - including the PYNQ video infrastructure and the custom hardware tracker - fits comfortably in the Zynq-7000 device and meets the specified timing constraints.
+The final Vivado implementation confirms that the complete system including the PYNQ video infrastructure and the custom hardware tracker fits comfortably in the Zynq-7000 device and meets the specified timing constraints.
 
 ## Timing Closure
 

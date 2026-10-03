@@ -1,7 +1,7 @@
 """
 full_system_simulation.py
 
-PC simulation of the CURRENT PYNQ-Z2 object-tracking system.
+PC simulation of the PYNQ-Z2 object-tracking system.
 
 The simulator provides a live desktop view for selecting and tracking an object:
 

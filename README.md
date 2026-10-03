@@ -1,6 +1,6 @@
-# PYNQ-Z2 FPGA-Based Real-Time Object Tracking System
+# PYNQ-Z2 FPGA Based Real-Time Object Tracking System
 
-An **FPGA-first real-time object tracking system** implemented on the **PYNQ-Z2**, with the complete continuous tracking loop executed in Programmable Logic (PL).
+An **FPGA real-time object tracking system** implemented on the **PYNQ-Z2**, with the complete continuous tracking loop executed in Programmable Logic (PL).
 
 The ARM Processing System (PS) is used to capture/forward camera frames, perform one-time initialization, provide user interaction, and configure the FPGA. **Once a frame enters the custom `vision_tracker_ip`, the PS does not calculate the object's position, center, motion, prediction, ROI, loss state, or recovery search. Those operations are performed entirely in hardware.**
 

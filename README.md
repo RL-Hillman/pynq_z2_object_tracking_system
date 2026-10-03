@@ -410,33 +410,9 @@ coordinate_sum_bits()
 This centralizes the resolution-dependent configuration and allows the hardware to be adapted to a different frame size without manually recalculating signal widths throughout the individual VHDL modules.
 
 ---
-## Why This Architecture Fits an FPGA
-
-The tracker combines two workloads that map naturally to programmable logic:
-
-- **Per-pixel streaming work** — color conversion, ROI tests, thresholding and mask filtering can operate continuously as pixels arrive.
-- **Frame-level state updates** — object measurement, motion estimation, prediction and ROI updates are deterministic and can be implemented as registered state-machine stages.
-- **Local feedback** — the ROI generated from frame N is already available in hardware for frame N+1, without a software round trip.
-
-The PS is therefore reserved for tasks where software flexibility is more useful: camera interfacing, initialization, user interaction, diagnostics and optional high-level validation.
-
----
-
-
-
-
----
-
 # Operating Modes
 
 ## 1. General Object Tracking
-
-<p align="center">
-  <img src="docs/general_object1.gif" width="48%">
-  <img src="docs/general_object_2.gif" width="48%">
-</p>
-
-<p align="center"><i>Two examples of the general-purpose FPGA tracker following different user-selected objects.</i></p>
 
 Directory:
 
@@ -461,22 +437,20 @@ This is the cleanest demonstration of the hardware tracker.
 5. The PS writes the initial ROI and thresholds to the FPGA.
 6. Tracking is enabled.
 7. From this point, the PS continues to deliver video frames, but **the continuous tracking state is owned by the PL**.
-8. For every new frame, the PL independently performs segmentation, filtering, object measurement, centroid calculation, velocity estimation, prediction, ROI movement/resizing and loss recovery.
-9. The ROI calculated by the PL is automatically used for the following frame without a software tracking decision in between.
 
 > **General-object mode is the clearest demonstration of the hardware architecture:** after initialization, software does not continuously calculate where the object is or where the next ROI should be.
 
-The current initialization algorithm uses:
+The initialization behavior is controlled by the following parameters:
 
-```text
-Central ROI fraction:      0.72
-Low percentile:            5%
-High percentile:          95%
-Cr/Cb margin:               6
-Minimum color samples:     10
-```
+| Parameter | Purpose |
+|---|---|
+| `Central ROI fraction` | Defines how much of the center of the user-selected ROI is used for color sampling |
+| `Low percentile` | Defines the lower percentile used when estimating the Cr/Cb range |
+| `High percentile` | Defines the upper percentile used when estimating the Cr/Cb range |
+| `Cr/Cb margin` | Expands the learned Cr/Cb limits after percentile filtering |
+| `Minimum color samples` | Defines the minimum number of valid color samples required to estimate the initial Cr/Cb range |
 
-The purpose of the percentile limits is to reject color outliers before expanding the final Cr/Cb range by the configured margin.
+The percentile limits reduce the influence of color outliers, while the Cr/Cb margin provides additional tolerance around the learned object-color range.
 
 ### Initial ROI selection examples
 
@@ -501,7 +475,17 @@ During operation, the notebook can display the current hardware state read from 
   <img src="docs/general_object_pl_tracking_data.jpg" width="90%">
 </p>
 
+### Tracking results
+
+<p align="center">
+  <img src="docs/general_object1.gif" width="48%">
+  <img src="docs/general_object_2.gif" width="48%">
+</p>
+
+<p align="center"><i>Two examples of the general-purpose FPGA tracker following different user-selected objects.</i></p>
+
 ---
+````
 
 ## 2. Validated Hand Tracking
 
@@ -1088,3 +1072,15 @@ docs/
 This project implements a **stateful, autonomous FPGA object tracker** on the PYNQ-Z2. Software handles camera interfacing, initialization and optional high-level validation, while the continuous frame-by-frame tracking feedback loop remains in programmable logic.
 
 The result is a hardware-centric vision platform that combines a reusable VHDL tracking pipeline, AXI-based PS/PL integration, HDMI output, configurable tracking behavior and verified post-implementation timing/resource results.
+---
+## Why This Architecture Fits an FPGA
+
+The tracker combines two workloads that map naturally to programmable logic:
+
+- **Per-pixel streaming work** — color conversion, ROI tests, thresholding and mask filtering can operate continuously as pixels arrive.
+- **Frame-level state updates** — object measurement, motion estimation, prediction and ROI updates are deterministic and can be implemented as registered state-machine stages.
+- **Local feedback** — the ROI generated from frame N is already available in hardware for frame N+1, without a software round trip.
+
+The PS is therefore reserved for tasks where software flexibility is more useful: camera interfacing, initialization, user interaction, diagnostics and optional high-level validation.
+
+---

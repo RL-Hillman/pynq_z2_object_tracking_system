@@ -10,7 +10,7 @@ The project includes **two software operating modes**, both using the same hardw
 
 - **General Object Tracking** - the user selects an object once, and the PS learns the initial color thresholds and provides the initial ROI. From that point, the **FPGA performs the complete continuous tracking process autonomously**.
 
-- **Validated Hand Tracking** - demonstrates how an **AI model can be combined with the hardware tracker**. A palm-detection model running on the PS is used to acquire a hand and periodically validate that the FPGA is still tracking the correct target. Between validation events, the **FPGA continues to perform the complete real-time tracking independently**.
+- **Validated Hand Tracking** - demonstrates how an **AI model can be combined with the hardware tracker**. A palm-detection model running on the PS is used to acquire a hand and periodically validate that the FPGA is still tracking the correct target.
 
 ---
 

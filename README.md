@@ -778,16 +778,6 @@ pynq_z2_object_tracking_system/
 
 This project implements a **stateful, autonomous FPGA object tracker** on the PYNQ-Z2. Software handles camera interfacing, initialization and optional high-level validation, while the continuous frame-by-frame tracking feedback loop remains in programmable logic.
 
-The result is a hardware-centric vision platform that combines a reusable VHDL tracking pipeline, AXI-based PS/PL integration, HDMI output, configurable tracking behavior and verified post-implementation timing/resource results.
+The result is a hardware-centric vision platform that combines a reusable VHDL tracking pipeline, AXI-based PS/PL integration, HDMI output, configurable tracking behavior, and verified post-implementation timing and resource utilization.
 ---
-## Why This Architecture Fits an FPGA
 
-The tracker combines two workloads that map naturally to programmable logic:
-
-- **Per-pixel streaming work** — color conversion, ROI tests, thresholding and mask filtering can operate continuously as pixels arrive.
-- **Frame-level state updates** — object measurement, motion estimation, prediction and ROI updates are deterministic and can be implemented as registered state-machine stages.
-- **Local feedback** — the ROI generated from frame N is already available in hardware for frame N+1, without a software round trip.
-
-The PS is therefore reserved for tasks where software flexibility is more useful: camera interfacing, initialization, user interaction, diagnostics and optional high-level validation.
-
----

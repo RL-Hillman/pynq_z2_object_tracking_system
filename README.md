@@ -159,9 +159,7 @@ Cb = ((-43R - 85G + 128B) >> 8) + 128
 Cr = ((128R -107G - 21B) >> 8) + 128
 ```
 
-The conversion is performed in one clock stage and the final Y, Cr and Cb values are registered at the output.
-
-Only **Cr and Cb** are required by the object-classification stage.
+Object classification is based exclusively on the **Cr and Cb chrominance components** of the YCrCb color space. The **Y (luminance) component is excluded from the tracking process**, reducing the system’s sensitivity to variations in illumination and brightness.
 
 ### 2. `roi_mask_generator.vhd`
 

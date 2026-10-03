@@ -175,7 +175,6 @@ AND cb_min <= Cb <= cb_max
 
 Pixels outside the ROI are forced to zero. Limiting classification to the current ROI reduces the search region and prevents unrelated areas of the frame from participating in the measurement.
 
-### 3. `mask_cleaner.vhd`
 
 ### 3. `mask_cleaner.vhd`
 

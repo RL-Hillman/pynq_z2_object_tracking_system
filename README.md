@@ -12,7 +12,7 @@ The project includes **two software operating modes**, both using the same hardw
 
 - **Validated Hand Tracking** - demonstrates how an **AI model can be combined with the hardware tracker**. A palm-detection model running on the PS is used to acquire a hand and periodically validate that the FPGA is still tracking the correct target.
 
----
+
 ## System Architecture and Vivado Integration
 
 The tracking system is implemented as a custom Vivado IP, `vision_tracker_ip`, integrated directly into the PYNQ-Z2 video pipeline.

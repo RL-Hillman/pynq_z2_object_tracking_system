@@ -474,7 +474,7 @@ During operation, the notebook can display the current hardware state read from 
   <img src="docs/general_object_pl_tracking_data.jpg" width="90%">
 </p>
 
-### Tracking results
+### HDMI Tracking Display
 
 <p align="center">
   <img src="docs/general_object1.gif" width="48%">

@@ -15,7 +15,8 @@ The project includes **two software operating modes**, both using the same hardw
 
 ## System Architecture and Vivado Integration
 
-The tracking system builds on the **PYNQ-Z2 Base Overlay video pipeline**, which was adapted and extended with a custom Vivado IP, `vision_tracker_ip`, integrated directly into the hardware video-processing path.
+The tracking system is built on the **PYNQ-Z2 Base Overlay video pipeline**, which was adapted and extended to incorporate a custom Vivado IP core, `vision_tracker_ip`, directly into the hardware video-processing path.
+
 The custom IP provides:
 
 - AXI4-Stream video input (`S_AXIS_VIDEO`),

@@ -343,8 +343,8 @@ The centroid therefore represents the average position of all matching object pi
 The implementation separates the work into two clocked processes:
 
 1. A frame accumulator updates `pixel_count`, `sum_x`, `sum_y`, `min_x`, `max_x`, `min_y`, and `max_y` continuously as matching pixels arrive.
-2. At the end of the frame, the accumulated values are captured as a completed-frame snapshot, and two sequential dividers calculate `centroid_x` and `centroid_y`.
-
+2. At the end of the frame, the accumulated values are captured as a completed-frame snapshot. The X and Y centroid coordinates are then calculated in parallel, while the division operations required for `centroid_x` and `centroid_y` are distributed over multiple clock cycles to reduce the combinational path and help the design meet timing requirements.
+   
 While centroid division is being performed for the completed frame, the accumulator can already begin processing pixels from the next frame.
 
 ### 5. `roi_tracker_update.vhd`

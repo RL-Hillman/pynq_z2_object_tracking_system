@@ -355,9 +355,7 @@ At the end of each measured frame, the tracker first determines whether the new 
 
 #### Measurement acceptance decision
 
-The decision is based on the number of matching object pixels reported by `object_measurement.vhd`.
-
-The tracker uses a dynamic minimum pixel requirement:
+The decision is made by comparing the number of pixels classified as part of the object against a dynamic acceptance threshold, which is calculated according to the size of the object in the most recently accepted measurement.
 
 ```text
 min_accepted_pixels = max(

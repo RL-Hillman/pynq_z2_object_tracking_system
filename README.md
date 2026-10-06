@@ -569,7 +569,7 @@ To isolate the hardware cost of the tracker itself from the surrounding PYNQ vid
   <img src="docs/vision_tracker_ip_utilization.png" width="90%">
 </p>
 
-The complete custom tracking IP, including the segmentation, mask cleaning, object measurement, ROI generation, motion prediction and AXI-Lite control logic, uses the following FPGA resources:
+The complete custom tracking IP uses the following FPGA resources:
 
 | Resource | Used | Device Available | Utilization |
 |---|---:|---:|---:|

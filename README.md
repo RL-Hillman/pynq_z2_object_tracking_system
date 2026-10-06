@@ -561,7 +561,29 @@ They include the video/HDMI infrastructure, AXI interconnects, clocking logic, V
 Despite including the complete video and control infrastructure, the implemented design uses less than one quarter of the available LUT and FF resources and less than 10% of the available BRAM and DSP resources.
 
 This leaves substantial programmable-logic capacity for future extensions and features.
+## Custom Tracker IP Resource Utilization
 
+To isolate the hardware cost of the tracker itself from the surrounding PYNQ video infrastructure, the hierarchical Vivado utilization report was also examined specifically for `vision_tracker_ip_0`.
+
+<p align="center">
+  <img src="docs/vision_tracker_ip_utilization.png" width="90%">
+</p>
+
+The complete custom tracking IP, including the segmentation, mask cleaning, object measurement, ROI generation, motion prediction and AXI-Lite control logic, uses the following FPGA resources:
+
+| Resource | Used | Device Available | Utilization |
+|---|---:|---:|---:|
+| Slice LUTs | 2,809 | 53,200 | 5.3% |
+| Slice Registers | 3,801 | 106,400 | 3.6% |
+| Slices | 1,597 | 13,300 | 12.0% |
+| Block RAM Tiles | 0 | 140 | 0% |
+| DSPs | 1 | 220 | 0.5% |
+
+The results show that the custom tracker itself occupies only a relatively small portion of the Zynq-7000 programmable logic. In particular, the tracker requires no Block RAM resources and only a single DSP block.
+
+The hierarchical report also shows how the resources are distributed between the internal VHDL modules. The largest contributors are `mask_cleaner`, `roi_mask_generator` and `roi_tracker_update`, while the measurement, color-conversion and display stages require substantially fewer resources.
+
+This confirms that most of the FPGA utilization of the complete design comes from the surrounding PYNQ video infrastructure rather than from the tracking IP itself, leaving significant capacity for future extensions of the tracker.
 
 # Repository Structure
 

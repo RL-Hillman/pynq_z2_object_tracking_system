@@ -571,13 +571,13 @@ To isolate the hardware cost of the tracker itself from the surrounding PYNQ vid
 
 The complete custom tracking IP uses the following FPGA resources:
 
-| Resource | Used |
+| Resource | Used | Device Available | Utilization |
 |---|---:|---:|---:|
-| Slice LUTs | 2,809 |
-| Slice Registers | 3,801 |
-| Slices | 1,597 | 
-| Block RAM Tiles | 0 | 
-| DSPs | 1 | 
+| Slice LUTs | 2,809 | 53,200 | 5.3% |
+| Slice Registers | 3,801 | 106,400 | 3.6% |
+| Slices | 1,597 | 13,300 | 12.0% |
+| Block RAM Tiles | 0 | 140 | 0% |
+| DSPs | 1 | 220 | 0.5% |
 
 The results show that the custom tracker itself occupies only a relatively small portion of the Zynq-7000 programmable logic. In particular, the tracker requires no Block RAM resources and only a single DSP block.
 

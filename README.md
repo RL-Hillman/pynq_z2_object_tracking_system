@@ -548,6 +548,61 @@ In `object_measurement`, frame accumulation is separated from centroid calculati
 
 Together with the dedicated **100 MHz tracking clock domain** and the AXI4-Stream clock-domain converters surrounding the tracker, these architectural choices allowed the implemented design to meet all timing requirements.
 
+## Tracker Performance
+
+A dedicated VHDL performance testbench, `tb_vision_tracker_core_performance.vhd`,
+was used to evaluate the implemented tracking core at its **100 MHz operating
+frequency** and the system resolution of **640 × 480 pixels**, corresponding to
+**307,200 pixels per frame**.
+
+<p align="center">
+  <img src="docs/vision_tracker_performance.png" width="70%">
+</p>
+
+### Throughput
+
+The tracking datapath sustains a processing rate of **1 pixel per clock cycle**,
+corresponding to **100 MPixel/s** at 100 MHz.
+
+For the 640 × 480 resolution, this corresponds to a frame-equivalent processing
+rate of **325.521 FPS**.
+
+This demonstrates that the datapath can continuously accept and process a new
+pixel on every clock cycle.
+
+> **Note:** The reported FPS values represent the processing capability of the
+> tracking core itself, not the actual frame rate of the complete video system.
+> The complete system frame rate also depends on the camera, VDMA, video
+> interfaces, and other surrounding components.
+
+### Latency
+
+The measured video-path latency is **1,286 clock cycles (12.860 µs)**, measured
+from the first accepted input pixel of a frame to the corresponding first output
+pixel.
+
+Because the tracker uses a pipelined architecture, this latency does not reduce
+the sustained throughput. While the first pixel progresses through the
+processing stages, new pixels continue to enter the pipeline every clock cycle.
+
+After the final pixel of a frame is accepted, the updated tracking result becomes
+available after only **17 clock cycles (0.170 µs)**.
+
+### Frame-to-Frame Performance
+
+The measured interval between the start of two consecutive frames is
+**307,217 clock cycles**.
+
+A complete 640 × 480 frame requires **307,200 clock cycles** at one pixel per
+clock, meaning that only **17 additional clock cycles** are required between
+consecutive frames.
+
+Including this frame-boundary processing time, the maximum tracker-core
+processing rate is **325.503 FPS**, with a datapath efficiency of **99.994%**.
+
+Overall, the results demonstrate continuous **one-pixel-per-clock processing**,
+high datapath efficiency, and very low additional processing time between
+consecutive frames.
 ## Full-System FPGA Resource Utilization
 
 The resource figures below represent the **complete implemented PYNQ-Z2 design**, not only `vision_tracker_ip`.

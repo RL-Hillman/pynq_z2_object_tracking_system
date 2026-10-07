@@ -648,6 +648,9 @@ pynq_z2_object_tracking_system/
 │   │   ├── vision_tracker_ip.vhd
 │   │   └── vision_tracker_ip_slave_lite_v1_0_S_AXI_TRACK.vhd
 │   │
+│   ├── sim/
+│   │   └── tb_vision_tracker_core_performance.vhd
+│   │
 │   └── src/
 │       ├── mask_cleaner.vhd
 │       ├── object_display.vhd
@@ -670,15 +673,17 @@ pynq_z2_object_tracking_system/
 │       └── run_tracker.py
 │
 ├── docs/
+│   ├── full_system_fpga_utilization.png
 │   ├── general_object1.gif
 │   ├── general_object_2.gif
-│   ├── hand.gif
 │   ├── general_object_initial_roi_green_object.jpg
 │   ├── general_object_initial_roi_mug.jpg
 │   ├── general_object_pl_tracking_data.jpg
-│   ├── validated_hand_tracking_status.jpg
+│   ├── hand.gif
 │   ├── hdmi_tracker_integration.png
-│   └── full_system_fpga_utilization.png
+│   ├── validated_hand_tracking_status.jpg
+│   ├── vision_tracker_ip_utilization.png
+│   └── vision_tracker_performance.png
 │
 ├── full_system_simulation.py
 └── README.md

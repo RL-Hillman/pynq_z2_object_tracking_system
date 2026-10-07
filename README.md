@@ -530,7 +530,7 @@ Post-implementation Vivado analysis confirmed that **all user-specified timing c
 
 Timing closure was treated as an architectural requirement throughout the VHDL design. Computationally intensive operations were therefore divided across registered stages rather than implemented as long combinational paths.
 
-For example, In `roi_tracker_update`, the accepted-frame update is pipelined as:
+For example, in `roi_tracker_update`, the accepted-frame update is pipelined as:
 
 ```text
 Velocity calculation
@@ -541,12 +541,7 @@ ROI sizing
         ↓
 State / ROI commit
 ```
-
-The loss-recovery path is similarly divided into separate ROI expansion and commit stages.
-
-In `object_measurement`, frame accumulation is separated from centroid calculation. After a frame is completed, the X and Y centroids are calculated using sequential dividers that distribute the division operation across multiple clock cycles.
-
-Together with the dedicated **100 MHz tracking clock domain** and the AXI4-Stream clock-domain converters surrounding the tracker, these architectural choices allowed the implemented design to meet all timing requirements.
+The implemented tracker therefore meets timing at its target **100 MHz operating frequency**, confirming that the pipelined architecture is suitable for reliable real-time operation on the FPGA.
 
 ## Tracker Performance
 

@@ -39,7 +39,7 @@ The surrounding blocks perform the following functions:
 3. **`axis_clk_to_tracker`** - transfers the video stream from the **142 MHz HDMI/video clock domain** into the dedicated **100 MHz tracking domain**.
 4. **`vision_tracker_ip_0`** - executes the VHDL tracking pipeline and updates the tracking data.
 5. **`axis_clk_from_tracker`** - transfers the processed stream from the tracking domain back to the **142 MHz HDMI/video clock domain**..
-6. **`color_convert` and HDMI frontend** - format the resulting video stream and drive the physical TMDS output.
+6. **`color_convert and HDMI frontend`** - Convert the video stream to the required output format and drive the physical HDMI output of the board.
 
 ### AXI Interfaces
 

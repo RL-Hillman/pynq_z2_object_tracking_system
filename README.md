@@ -833,7 +833,11 @@ Open a Jupyter notebook and run:
 
 ## Summary
 
-This project implements a **stateful, autonomous FPGA object tracker** on the PYNQ-Z2. Software handles camera interfacing, initialization and optional high-level validation, while the continuous frame-by-frame tracking feedback loop remains in programmable logic.
+This project delivers a **flexible, FPGA-based real-time object tracking system** built around a custom VHDL hardware engine that autonomously performs continuous tracking. By separating the hardware tracking process from software-based initialization and supervision, the same tracking IP can be integrated with different software applications, including AI-based detection and validation, without modifying the underlying hardware logic.
 
-The result is a hardware-centric vision platform that combines a reusable VHDL tracking pipeline, AXI-based PS/PL integration, HDMI output, configurable tracking behavior, and verified post-implementation timing and resource utilization.
+The implemented tracker operates at **100 MHz**, sustaining **one pixel per clock cycle (100 MPixels/s)**, equivalent to a maximum core processing rate of approximately **325.5 FPS at the current 640 × 480 resolution**. The hardware architecture supports configurable frame dimensions, allowing adaptation to different resolutions through VHDL configuration and FPGA reimplementation.
+
+Despite these processing capabilities, the custom IP utilizes only **5.3% of available LUTs, 3.6% of registers, no Block RAM, and a single DSP block**.
+
+These results demonstrate an **efficient and reusable hardware tracking architecture** that combines high processing throughput, low FPGA resource utilization, and flexibility for integration into different vision applications.
 

@@ -226,7 +226,7 @@ During operation, the notebook displays the interaction between the software val
 The status output includes PS acquisition and validation events together with the current FPGA snapshot, ROI, measured object state and tracking-loss status.
 
 <p align="center">
-  <img src="docs/validated_hand_tracking_status.jpg" width="90%">
+  <img src="docs/validated_hand_tracking_status.png" width="90%">
 </p>
 
 ### HDMI Tracking Display

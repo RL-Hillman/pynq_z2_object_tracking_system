@@ -436,7 +436,8 @@ class NotebookHandUI:
         try:
             self._config_widget.value = (
                 "<pre style='margin:0'>"
-                f"PS LOCK | ROI=({roi[0]},{roi[1]},{roi[2]},{roi[3]}) | "
+                f"PS LOCK | ROI X=[{roi[0]},{roi[0] + roi[2] - 1}] "
+                f"Y=[{roi[1]},{roi[1] + roi[3] - 1}] | "
                 f"Cr=[{cr_min},{cr_max}] | Cb=[{cb_min},{cb_max}]"
                 f"{score_text}"
                 "</pre>"
@@ -449,13 +450,14 @@ class NotebookHandUI:
             return
         try:
             self._pl_widget.value = (
-                "<pre style='margin:0'>"
+                "<pre style='margin:0; white-space:pre-wrap;'>"
                 f"PL | snapshot={td.snapshot} | "
                 f"object_center=({td.object_cx},{td.object_cy}) | "
+                f"pred=({td.pred_cx},{td.pred_cy})\n"
                 f"object_size={td.object_w}x{td.object_h} | "
                 f"pixels={td.pixel_count} | "
-                f"ROI=({td.roi_x},{td.roi_y},{td.roi_w},{td.roi_h}) | "
-                f"pred=({td.pred_cx},{td.pred_cy}) | "
+                f"ROI X=[{td.roi_x},{td.roi_x + td.roi_w - 1}] "
+                f"Y=[{td.roi_y},{td.roi_y + td.roi_h - 1}] | "
                 f"lost={int(td.tracking_lost)}"
                 "</pre>"
             )

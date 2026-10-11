@@ -309,7 +309,8 @@ class NotebookPLOnlyUI:
             self._config_widget.value = (
                 "<pre style='margin:0'>"
                 "INITIAL CONFIG | "
-                f"ROI=({roi[0]},{roi[1]},{roi[2]},{roi[3]}) | "
+                f"ROI X=[{roi[0]},{roi[0] + roi[2] - 1}] "
+                f"Y=[{roi[1]},{roi[1] + roi[3] - 1}] | "
                 f"Cr=[{cr_min},{cr_max}] | "
                 f"Cb=[{cb_min},{cb_max}] | "
                 "</pre>"

@@ -324,13 +324,14 @@ class NotebookPLOnlyUI:
 
         try:
             self._pl_data_widget.value = (
-                "<pre style='margin:0'>"
+                "<pre style='margin:0; white-space:pre-wrap;'>"
                 f"PL DATA | snapshot={td.snapshot} | "
                 f"object_center=({td.object_cx},{td.object_cy}) | "
+                f"pred=({td.pred_cx},{td.pred_cy})\n"
                 f"object_size={td.object_w}x{td.object_h} | "
                 f"pixels={td.pixel_count} | "
-                f"ROI=({td.roi_x},{td.roi_y},{td.roi_w},{td.roi_h}) | "
-                f"pred=({td.pred_cx},{td.pred_cy}) | "
+                f"ROI X=[{td.roi_x},{td.roi_x + td.roi_w - 1}] "
+                f"Y=[{td.roi_y},{td.roi_y + td.roi_h - 1}] | "
                 f"lost={int(td.tracking_lost)}"
                 "</pre>"
             )
@@ -1085,7 +1086,8 @@ class PYNQObjectTracker:
                     f"object_center=({td.object_cx},{td.object_cy}) "
                     f"object_size={td.object_w}x{td.object_h} "
                     f"pixels={td.pixel_count} "
-                    f"ROI=({td.roi_x},{td.roi_y},{td.roi_w},{td.roi_h}) "
+                    f"ROI X=[{td.roi_x},{td.roi_x + td.roi_w - 1}] "
+                    f"Y=[{td.roi_y},{td.roi_y + td.roi_h - 1}] "
                     f"pred=({td.pred_cx},{td.pred_cy}) "
                     f"lost={int(td.tracking_lost)}",
                     flush=True,

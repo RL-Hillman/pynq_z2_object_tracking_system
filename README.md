@@ -169,7 +169,7 @@ The general-object mode begins with a one-time user selection of the target ROI.
 During operation, the notebook can display the current hardware state read from the tracker through AXI-Lite, including the published snapshot number, measured object center and size, pixel count, current ROI, predicted center and loss state.
 
 <p align="center">
-  <img src="docs/general_object_pl_tracking_data.jpg" width="90%">
+  <img src="docs/general_object_pl_tracking_data.png" width="90%">
 </p>
 
 ### HDMI Tracking Display

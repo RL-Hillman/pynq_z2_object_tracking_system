@@ -77,7 +77,7 @@ The tracker is memory-mapped at:
 | `0x1C` | PS → PL | `INITIAL_ROI_WIDTH` | Initial ROI width |
 | `0x20` | PS → PL | `INITIAL_ROI_HEIGHT` | Initial ROI height |
 | `0x24` | PS → PL | `OBJECT_THRESHOLDS` | Packed Cr/Cb bounds |
-| `0x04` | PL → PS | `TRACKING_STATUS` | Bit 0 = tracking lost |
+| `0x04` | PL → PS | `TRACKING_STATUS` | Bit 0: 0 = Not lost, 1 = Tracking lost |
 | `0x08` | PL → PS | `SNAPSHOT_COUNTER` | Increments on each coherent published result |
 | `0x0C` | PL → PS | `FRAME_WIDTH` | Hardware frame width |
 | `0x10` | PL → PS | `FRAME_HEIGHT` | Hardware frame height |

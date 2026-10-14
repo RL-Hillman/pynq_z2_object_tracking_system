@@ -316,8 +316,6 @@ This removes isolated mask noise while preserving regions where object-classifie
 
 The module uses **line buffers and a sliding window** for continuous raster processing. After the initial raster-alignment delay, it supports **one output pixel for every valid input pixel**.
 
-The filtered output is re-aligned to a complete frame raster so downstream blocks receive correctly positioned pixel coordinates and do not need to compensate for the filter offset.
-
 ### 4. `object_measurement.vhd`
 
 Calculates the position, size, and center of the detected object from the cleaned binary mask.

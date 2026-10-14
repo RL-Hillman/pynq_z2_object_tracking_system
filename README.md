@@ -320,7 +320,7 @@ The module uses **line buffers and a sliding window** for continuous raster proc
 
 Calculates the position, size, and center of the detected object from the cleaned binary mask.
 
-As each valid pixel arrives, every pixel classified as part of the object contributes to four running measurements:
+As each valid pixel arrives, every pixel classified as part of the object contributes to running measurements:
 
 ```text
 pixel_count -   Number of matching pixels

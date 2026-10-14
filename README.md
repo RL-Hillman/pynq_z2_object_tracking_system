@@ -102,7 +102,7 @@ bits 23:16  = Cb min
 bits 31:24  = Cb max
 ```
 
-##### PS–PL Software Interface (`fpga.py`)
+##### PS-PL Software Interface (`fpga.py`)
 
 The `fpga.py` module serves as the **software interface between the PS applications and the hardware tracker in the PL**, providing a set of ready-to-use functions for communication through AXI-Lite.
 

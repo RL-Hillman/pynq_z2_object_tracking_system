@@ -102,11 +102,21 @@ bits 23:16  = Cb min
 bits 31:24  = Cb max
 ```
 
-#### Snapshot Counter
+#### PS–PL Software Interface (`fpga.py`)
 
-The PL increments `SNAPSHOT_COUNTER` whenever a new tracking result is published. This allows the PS to detect when fresh tracking data is available.
+The `fpga.py` module serves as the **software interface between the PS applications and the hardware tracker in the PL**, providing a set of ready-to-use functions for communication through AXI-Lite.
 
-When the PS reads the complete tracking result, `fpga.py` uses this counter to ensure that **all values being read belong to the same processed frame**. `fpga.py` checks the counter both before and after reading the tracking registers; if it changes during the read, a new result was published before the read was completed, so the registers are read again.
+Instead of directly accessing hardware registers, the main PS applications simply call the appropriate functions from `fpga.py` to send configuration parameters, control the tracker, or retrieve tracking results. The module handles the underlying register addresses, data formatting, and memory-mapped communication.
+
+Its main responsibilities include:
+
+- **FPGA initialization** - loads the FPGA overlay and establishes register access using PYNQ's `Overlay` and `MMIO` APIs, through the `FPGA()` constructor.
+- **Tracker configuration** - transfers the initial ROI coordinates and Cr/Cb color thresholds to the PL, using `write_initial_roi()` and `write_object_thresholds()`.
+- **Tracker control** - enables or disables hardware tracking through `set_tracking_enable()`.
+- **Tracking data retrieval** - reads the object position, dimensions, pixel count, current ROI, predicted center, and tracking-loss status, using `read_tracking_data()`, which returns the results as a structured `TrackingData` object.
+- **Data consistency** - detects changes in the `SNAPSHOT_COUNTER` during register reads and retries when necessary, as part of `read_tracking_data()`.
+
+This abstraction allows the main PS applications to focus on their own functionality while `fpga.py` handles the low-level control and status communication with the PL. 
 
 # Operating Modes
 

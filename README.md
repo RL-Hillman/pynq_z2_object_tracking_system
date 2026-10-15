@@ -258,6 +258,8 @@ The tracking engine is implemented as a sequence of dedicated VHDL blocks:
 
 
 ```mermaid
+
+%%{init: {"themeVariables": {"fontSize": "22px"}, "flowchart": {"nodeSpacing": 60, "rankSpacing": 70}}}%%
 flowchart LR
     A(["24-bit RGB Video Stream"])
     B["rgb_to_ycrcb"]

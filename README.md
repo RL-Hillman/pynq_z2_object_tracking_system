@@ -258,23 +258,46 @@ The tracking engine is implemented as a sequence of dedicated VHDL blocks:
 
 
 ```mermaid
-flowchart TD
-    A[24-bit RGB Video Stream] --> B[rgb_to_ycrcb]
-    B --> C[roi_mask_generator]
-    C --> D[mask_cleaner]
-    D --> E[object_measurement]
-    E --> F[roi_tracker_update]
+flowchart LR
+    A(["24-bit RGB Video Stream"])
+    B["rgb_to_ycrcb"]
+    C["roi_mask_generator"]
+    D["mask_cleaner"]
+    E["object_measurement"]
+    F["roi_tracker_update"]
 
-    F -->|Updated ROI| C
+    G["object_display"]
+    H["Coherent PS Result Snapshot"]
+    I(["Debug Video Stream"])
 
-    D --> G[object_display]
-    E --> G
-    F --> G
+    %% Main processing pipeline
+    A --> B --> C --> D --> E --> F
 
-    E --> H[Coherent PS Result Snapshot]
-    F --> H
+    %% ROI feedback
+    F -.->|Updated ROI| C
 
-    G --> I[Debug Video Stream]
+    %% Debug display
+    D -->|Cleaned Mask| G
+    E -->|Measured Center| G
+    F -->|Tracking Information| G
+    G --> I
+
+    %% PS results
+    E -->|Measurements| H
+    F -->|Tracking Results| H
+
+    %% Node styling
+    classDef input fill:#E8F1FF,stroke:#3675C9,stroke-width:2px,color:#17365D
+    classDef process fill:#F1F5F9,stroke:#64748B,stroke-width:1.5px,color:#1E293B
+    classDef tracker fill:#E1F5E9,stroke:#22965B,stroke-width:2px,color:#14532D
+    classDef display fill:#F1EAFE,stroke:#8B5CF6,stroke-width:2px,color:#4C1D95
+    classDef result fill:#FFF0DD,stroke:#E59B32,stroke-width:2px,color:#78350F
+
+    class A,I input
+    class B,C,D,E process
+    class F tracker
+    class G display
+    class H result
 ```
 
 

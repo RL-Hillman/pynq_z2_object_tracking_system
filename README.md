@@ -256,6 +256,7 @@ The FPGA implements a complete frame-to-frame tracking feedback loop. For each f
 
 The tracking engine is implemented as a sequence of dedicated VHDL blocks:
 
+
 ```mermaid
 flowchart TD
     A[24-bit RGB Video Stream] --> B[rgb_to_ycrcb]
@@ -264,12 +265,18 @@ flowchart TD
     D --> E[object_measurement]
     E --> F[roi_tracker_update]
 
+    F -->|Updated ROI| C
+
     D --> G[object_display]
+    E --> G
     F --> G
 
-    F --> H[Coherent PS Result Snapshot]
+    E --> H[Coherent PS Result Snapshot]
+    F --> H
+
     G --> I[Debug Video Stream]
 ```
+
 
 ### 1. `rgb_to_ycrcb.vhd`
 

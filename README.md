@@ -169,8 +169,8 @@ The general-object mode begins with a one-time user selection of the target ROI.
     <td width="50%" align="center"><img src="docs/general_object_initial_roi_mug.jpg" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><b>Initial ROI — Example 1</b></td>
-    <td align="center"><b>Initial ROI — Example 2</b></td>
+    <td align="center"><b>Initial ROI - Example 1</b></td>
+    <td align="center"><b>Initial ROI - Example 2</b></td>
   </tr>
 </table>
 
@@ -744,7 +744,7 @@ pynq_z2_object_tracking_system/
 
 The following procedure is intended for a direct Ethernet connection between a Windows computer and the PYNQ-Z2.
 
-## Step 1 — Find the COM Port
+## Step 1 - Find the COM Port
 
 1. Connect the PYNQ-Z2 to the computer through its serial/UART USB connection.
 2. Press **Windows + X**.
@@ -758,7 +758,7 @@ COM3
 
 The exact COM number may be different on every computer.
 
-## Step 2 — Open a Serial Session in PuTTY or another serial terminal
+## Step 2 - Open a Serial Session in PuTTY or another serial terminal
 
 Open PuTTY and configure:
 
@@ -786,7 +786,7 @@ For example:
 inet 192.168.2.99
 ```
 
-## Step 3 — Configure the Computer's Ethernet Address
+## Step 3 - Configure the Computer's Ethernet Address
 
 Open the Windows settings for the Ethernet adapter and configure IPv4 manually.
 
@@ -807,7 +807,7 @@ Gateway:     leave blank
 DNS:         leave blank
 ```
 
-## Step 4 — Open the PYNQ Web Interface
+## Step 4 - Open the PYNQ Web Interface
 
 In a browser, open:
 
